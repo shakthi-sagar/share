@@ -1,0 +1,23 @@
+{
+  "name": "@share/api-cloudflare",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "wrangler deploy --dry-run",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "dev": "wrangler dev",
+    "test": "vitest run --passWithNoTests",
+    "types": "wrangler types"
+  },
+  "dependencies": {
+    "@share/protocol": "workspace:*",
+    "@share/server": "workspace:*",
+    "hono": "4.13.9"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20260925.1",
+    "vitest": "5.0.2",
+    "wrangler": "4.140.0"
+  }
+}

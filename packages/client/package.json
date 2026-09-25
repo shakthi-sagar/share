@@ -1,0 +1,21 @@
+{
+  "name": "@share/client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@share/crypto": "workspace:*",
+    "@share/protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "5.0.2"
+  }
+}

@@ -1,0 +1,34 @@
+import { Check, Copy } from "lucide-react";
+import { useEffect, useState } from "react";
+
+export function CopyButton({
+  value,
+  label = "Copy",
+}: {
+  value: string;
+  label?: string;
+}): React.JSX.Element {
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!copied) {
+      return;
+    }
+    const timeout = window.setTimeout(() => setCopied(false), 1600);
+    return () => window.clearTimeout(timeout);
+  }, [copied]);
+
+  return (
+    <button
+      className="button button-secondary button-copy"
+      type="button"
+      onClick={async () => {
+        await navigator.clipboard.writeText(value);
+        setCopied(true);
+      }}
+    >
+      {copied ? <Check size={15} /> : <Copy size={15} />}
+      {copied ? "Copied" : label}
+    </button>
+  );
+}

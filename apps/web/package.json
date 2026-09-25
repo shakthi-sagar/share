@@ -1,0 +1,28 @@
+{
+  "name": "@share/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "dev": "vite",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@share/client": "workspace:*",
+    "@share/protocol": "workspace:*",
+    "lucide-react": "1.48.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-markdown": "10.1.0",
+    "remark-gfm": "4.0.1"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.1.1",
+    "vite": "8.3.1",
+    "vitest": "5.0.2"
+  }
+}
