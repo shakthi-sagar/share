@@ -117,6 +117,15 @@ function readConfig({ production: requireProduction }) {
     if (/^0{8}-0{4}-0{4}-0{4}-0{12}$/u.test(cloudflare.d1Id)) {
       fail("CLOUDFLARE_D1_ID must reference a provisioned database in production");
     }
+    // Why: Vite loads .env.local in every mode, so a local override would leak
+    // development URLs into the production bundle. Block the deploy instead.
+    for (const localEnvFile of [".env.local", ".env.production.local"]) {
+      if (existsSync(join(repositoryRoot, localEnvFile))) {
+        fail(
+          `${localEnvFile} overrides production values during the Vite build. Move local overrides to .env.development or remove the file.`,
+        );
+      }
+    }
   }
 
   return {

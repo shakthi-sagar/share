@@ -37,12 +37,23 @@ not be edited manually. Add new variables to all of these places:
 
 Browser-visible variables must use the `SHARE_PUBLIC_` prefix. Vite exposes only that prefix.
 
+### Local overrides and Vite env loading
+
+Vite loads `.env`, then `.env.local`, `.env.[mode]`, and `.env.[mode].local`, with later files
+overriding earlier ones. `.env.local` is loaded in every mode, including production builds, so a
+development `.env.local` would leak `http://localhost` URLs into the production bundle.
+
+- Keep local development values in `.env.development`, which Vite loads only in development mode.
+- Do not create `.env.local` or `.env.production.local` in this repository. `pnpm config:sync
+  --production` and `pnpm deploy:cloudflare` fail if either file exists.
+- `pnpm dev:local` reads `.env.development` for config sync and the Vite dev server.
+
 ## Common commands
 
 | Command | Purpose |
 | --- | --- |
 | `pnpm dev` | Start the web and API development servers |
-| `pnpm dev:local` | Sync config from `.env.local` and start both servers for local work (API bound to 127.0.0.1:8787) |
+| `pnpm dev:local` | Sync config from `.env.development` and start both servers for local work (API bound to 127.0.0.1:8787) |
 | `pnpm config:check` | Validate the active root `.env` |
 | `pnpm config:sync` | Generate Wrangler configuration |
 | `pnpm biome check .` | Check formatting and lint rules |
