@@ -182,7 +182,7 @@ export function WorkspaceEditor({ id }: { id: string }): React.JSX.Element {
     <div className="workspace-page">
       <header className="workspace-header">
         <a className="icon-button" href="/" aria-label="Back to workspaces" title="Home">
-          <Home size={18} />
+          <Home size={16} />
         </a>
         <WorkspaceNameEditor
           name={workspace.name}
@@ -190,10 +190,10 @@ export function WorkspaceEditor({ id }: { id: string }): React.JSX.Element {
         />
         <span className={`save-state is-${saveState}`} aria-live="polite">
           {saveState === "saving"
-            ? "Saving…"
+            ? "Local draft · Saving…"
             : saveState === "error"
-              ? "Save failed"
-              : "Saved locally"}
+              ? "Local save failed"
+              : "Local draft · Saved"}
         </span>
         <button
           className="button button-secondary workspace-files-button"
@@ -208,30 +208,11 @@ export function WorkspaceEditor({ id }: { id: string }): React.JSX.Element {
           disabled={files.length === 0}
           onClick={() => setShareOpen(true)}
         >
-          <Share2 size={16} /> Share snapshot
+          <Share2 size={15} /> Share snapshot
         </button>
       </header>
 
       <div className="workspace-body">
-        <main className="workspace-content">
-          {selected ? (
-            <EntryView
-              key={selected.id}
-              workspace={workspace}
-              entry={selected}
-              onChange={apply}
-              onError={setMessage}
-              onRename={() => setDialog({ kind: "rename", entry: selected })}
-              onDelete={() => setDialog({ kind: "delete", entry: selected })}
-            />
-          ) : (
-            <WorkspaceEmpty
-              onCreateFile={() => setDialog({ kind: "new-file" })}
-              onAddFiles={() => fileInput.current?.click()}
-            />
-          )}
-        </main>
-
         <aside className={`workspace-sidebar ${drawerOpen ? "is-open" : ""}`}>
           <div className="workspace-sidebar-heading">
             <span>Files</span>
@@ -241,7 +222,7 @@ export function WorkspaceEditor({ id }: { id: string }): React.JSX.Element {
               aria-label="Close files"
               onClick={() => setDrawerOpen(false)}
             >
-              <X size={18} />
+              <X size={17} />
             </button>
           </div>
           <div className="workspace-tree-actions">
@@ -285,6 +266,25 @@ export function WorkspaceEditor({ id }: { id: string }): React.JSX.Element {
             onClick={() => setDrawerOpen(false)}
           />
         ) : null}
+
+        <main className="workspace-content">
+          {selected ? (
+            <EntryView
+              key={selected.id}
+              workspace={workspace}
+              entry={selected}
+              onChange={apply}
+              onError={setMessage}
+              onRename={() => setDialog({ kind: "rename", entry: selected })}
+              onDelete={() => setDialog({ kind: "delete", entry: selected })}
+            />
+          ) : (
+            <WorkspaceEmpty
+              onCreateFile={() => setDialog({ kind: "new-file" })}
+              onAddFiles={() => fileInput.current?.click()}
+            />
+          )}
+        </main>
       </div>
 
       {message ? (
@@ -437,7 +437,7 @@ function WorkspaceTreeNodes({
   return (
     <div role={depth === 0 ? "presentation" : "group"}>
       {nodes.map(({ entry, children }) => {
-        const paddingInlineStart = 8 + depth * 14;
+        const paddingInlineStart = 9 + depth * 16;
         if (entry.type === "folder") {
           const isExpanded = expanded.has(entry.id);
           return (
@@ -459,7 +459,7 @@ function WorkspaceTreeNodes({
                   style={{ paddingInlineStart }}
                 >
                   <span className="tree-chevron" aria-hidden="true">
-                    {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    {isExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
                   </span>
                   <Folder size={15} />
                   <span className="tree-path">{entry.name}</span>
@@ -487,7 +487,7 @@ function WorkspaceTreeNodes({
             key={entry.id}
             onClick={() => onSelect(entry)}
             title={entry.name}
-            style={{ paddingInlineStart: paddingInlineStart + 20 }}
+            style={{ paddingInlineStart: paddingInlineStart + 21 }}
           >
             <WorkspaceFileIcon entry={entry} />
             <span className="tree-path">{entry.name}</span>
@@ -518,7 +518,7 @@ function EntryView({
     <div className="workspace-entry-view">
       <div className="entry-toolbar">
         <div className="entry-identity">
-          {entry.type === "folder" ? <Folder size={18} /> : <WorkspaceFileIcon entry={entry} />}
+          {entry.type === "folder" ? <Folder size={16} /> : <WorkspaceFileIcon entry={entry} />}
           <div>
             <strong>{entry.name}</strong>
             <span>{pathForEntry(workspace, entry.id)}</span>
@@ -551,7 +551,7 @@ function EntryView({
             </select>
           </label>
           <button className="icon-button" type="button" onClick={onRename} aria-label="Rename">
-            <Pencil size={16} />
+            <Pencil size={15} />
           </button>
           <button
             className="icon-button danger-action"
@@ -559,7 +559,7 @@ function EntryView({
             onClick={onDelete}
             aria-label="Delete"
           >
-            <Trash2 size={16} />
+            <Trash2 size={15} />
           </button>
         </div>
       </div>
@@ -570,7 +570,7 @@ function EntryView({
         />
       ) : (
         <div className="folder-summary">
-          <Folder size={32} />
+          <Folder size={28} />
           <h2>{entry.name}</h2>
           <p>
             {workspace.entries.filter((candidate) => candidate.parentId === entry.id).length} direct
@@ -671,7 +671,7 @@ function WorkspaceFileView({
 
   return (
     <div className="workspace-binary-preview">
-      <File size={32} />
+      <File size={30} />
       <h2>{entry.name}</h2>
       <p>
         {entry.mimeType} · {formatBytes(entry.blob.size)}
@@ -682,7 +682,7 @@ function WorkspaceFileView({
         type="button"
         onClick={() => downloadBlob(entry.blob, entry.name)}
       >
-        <Download size={16} /> Open or download
+        <Download size={15} /> Open or download
       </button>
     </div>
   );
@@ -760,7 +760,7 @@ function WorkspaceEmpty({
 }): React.JSX.Element {
   return (
     <div className="workspace-empty">
-      <FilePlus2 size={32} />
+      <FilePlus2 size={28} />
       <h1>Choose a file or make a new one</h1>
       <p>Everything here is stored locally until you create an encrypted share.</p>
       <div>
