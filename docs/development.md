@@ -42,6 +42,7 @@ Browser-visible variables must use the `SHARE_PUBLIC_` prefix. Vite exposes only
 | Command | Purpose |
 | --- | --- |
 | `pnpm dev` | Start the web and API development servers |
+| `pnpm dev:local` | Sync config from `.env.local` and start both servers for local work (API bound to 127.0.0.1:8787) |
 | `pnpm config:check` | Validate the active root `.env` |
 | `pnpm config:sync` | Generate Wrangler configuration |
 | `pnpm biome check .` | Check formatting and lint rules |

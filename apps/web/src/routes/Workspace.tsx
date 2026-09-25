@@ -19,6 +19,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ActionDialog } from "../components/ActionDialog";
 import { MarkdownPreview } from "../components/MarkdownPreview";
 import { SharePublisher } from "../components/SharePublisher";
 import { filePreviewKind } from "../lib/file-kind";
@@ -42,6 +43,10 @@ import { workspaceStore } from "../workspace/store";
 import type { Workspace, WorkspaceEntry, WorkspaceImportFile } from "../workspace/types";
 
 type SaveState = "saved" | "saving" | "error";
+type WorkspaceDialog =
+  | { kind: "new-file" | "new-folder" }
+  | { kind: "rename" | "delete"; entry: WorkspaceEntry }
+  | null;
 
 export function WorkspaceEditor({ id }: { id: string }): React.JSX.Element {
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
@@ -52,6 +57,7 @@ export function WorkspaceEditor({ id }: { id: string }): React.JSX.Element {
   const [message, setMessage] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [dialog, setDialog] = useState<WorkspaceDialog>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
   const saveVersion = useRef(0);
@@ -102,16 +108,6 @@ export function WorkspaceEditor({ id }: { id: string }): React.JSX.Element {
       });
   }
 
-  function runChange(change: () => Workspace, nextSelection?: string | null): void {
-    try {
-      const next = change();
-      apply(next);
-      if (nextSelection !== undefined) setSelectedId(nextSelection);
-    } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "Unable to change workspace");
-    }
-  }
-
   if (loading) {
     return <div className="workspace-loading">Opening local workspace…</div>;
   }
@@ -132,31 +128,29 @@ export function WorkspaceEditor({ id }: { id: string }): React.JSX.Element {
   const parentId = selected?.type === "folder" ? selected.id : (selected?.parentId ?? null);
   const files = workspaceFiles(workspace);
 
-  function createFile(): void {
+  function createFile(name: string): void {
     if (!workspace) return;
-    const name = window.prompt("File name", "README.md");
-    if (!name) return;
     try {
       const result = addFile(workspace, parentId, name);
       setExpanded((current) => new Set(current).add(parentId ?? ""));
       apply(result.workspace);
       setSelectedId(result.entry.id);
+      setDialog(null);
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "Unable to create file");
+      throw caught instanceof Error ? caught : new Error("Unable to create file");
     }
   }
 
-  function createFolder(): void {
+  function createFolder(name: string): void {
     if (!workspace) return;
-    const name = window.prompt("Folder name", "docs");
-    if (!name) return;
     try {
       const result = addFolder(workspace, parentId, name);
       setExpanded((current) => new Set(current).add(result.entry.id).add(parentId ?? ""));
       apply(result.workspace);
       setSelectedId(result.entry.id);
+      setDialog(null);
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "Unable to create folder");
+      throw caught instanceof Error ? caught : new Error("Unable to create folder");
     }
   }
 
@@ -196,10 +190,10 @@ export function WorkspaceEditor({ id }: { id: string }): React.JSX.Element {
         />
         <span className={`save-state is-${saveState}`} aria-live="polite">
           {saveState === "saving"
-            ? "Saving locally…"
+            ? "Local draft · Saving…"
             : saveState === "error"
-              ? "Save failed"
-              : "Saved locally"}
+              ? "Local save failed"
+              : "Local draft · Saved"}
         </span>
         <button
           className="button button-secondary workspace-files-button"
@@ -214,7 +208,7 @@ export function WorkspaceEditor({ id }: { id: string }): React.JSX.Element {
           disabled={files.length === 0}
           onClick={() => setShareOpen(true)}
         >
-          <Share2 size={15} /> Share
+          <Share2 size={15} /> Share snapshot
         </button>
       </header>
 
@@ -232,27 +226,17 @@ export function WorkspaceEditor({ id }: { id: string }): React.JSX.Element {
             </button>
           </div>
           <div className="workspace-tree-actions">
-            <button type="button" onClick={createFile} title="New file" aria-label="New file">
-              <FilePlus2 size={15} />
+            <button type="button" onClick={() => setDialog({ kind: "new-file" })}>
+              <FilePlus2 size={14} /> File
             </button>
-            <button type="button" onClick={createFolder} title="New folder" aria-label="New folder">
-              <FolderPlus size={15} />
+            <button type="button" onClick={() => setDialog({ kind: "new-folder" })}>
+              <FolderPlus size={14} /> Folder
             </button>
-            <button
-              type="button"
-              onClick={() => fileInput.current?.click()}
-              title="Add files"
-              aria-label="Add files"
-            >
-              <Upload size={15} />
+            <button type="button" onClick={() => fileInput.current?.click()}>
+              <Upload size={14} /> Import
             </button>
-            <button
-              type="button"
-              onClick={() => folderInput.current?.click()}
-              title="Add folder"
-              aria-label="Add folder"
-            >
-              <FolderUp size={15} />
+            <button type="button" onClick={() => folderInput.current?.click()}>
+              <FolderUp size={14} /> Folder
             </button>
           </div>
           <WorkspaceTree
@@ -291,18 +275,12 @@ export function WorkspaceEditor({ id }: { id: string }): React.JSX.Element {
               entry={selected}
               onChange={apply}
               onError={setMessage}
-              onRename={() => {
-                const name = window.prompt("Rename item", selected.name);
-                if (name) runChange(() => renameEntry(workspace, selected.id, name));
-              }}
-              onDelete={() => {
-                if (!window.confirm(`Delete “${selected.name}” from this workspace?`)) return;
-                runChange(() => deleteEntry(workspace, selected.id), null);
-              }}
+              onRename={() => setDialog({ kind: "rename", entry: selected })}
+              onDelete={() => setDialog({ kind: "delete", entry: selected })}
             />
           ) : (
             <WorkspaceEmpty
-              onCreateFile={createFile}
+              onCreateFile={() => setDialog({ kind: "new-file" })}
               onAddFiles={() => fileInput.current?.click()}
             />
           )}
@@ -342,6 +320,69 @@ export function WorkspaceEditor({ id }: { id: string }): React.JSX.Element {
 
       {shareOpen ? (
         <SharePublisher workspace={workspace} onClose={() => setShareOpen(false)} />
+      ) : null}
+
+      {dialog?.kind === "new-file" ? (
+        <ActionDialog
+          title="New file"
+          description="The file will be created in the selected folder and saved locally."
+          inputLabel="File name"
+          initialValue="README.md"
+          confirmLabel="Create file"
+          onClose={() => setDialog(null)}
+          onConfirm={createFile}
+        />
+      ) : null}
+      {dialog?.kind === "new-folder" ? (
+        <ActionDialog
+          title="New folder"
+          description="The folder will be created inside the current location."
+          inputLabel="Folder name"
+          initialValue="docs"
+          confirmLabel="Create folder"
+          onClose={() => setDialog(null)}
+          onConfirm={createFolder}
+        />
+      ) : null}
+      {dialog?.kind === "rename" ? (
+        <ActionDialog
+          title={`Rename “${dialog.entry.name}”`}
+          description="Paths in the next published snapshot will use the new name."
+          inputLabel="Name"
+          initialValue={dialog.entry.name}
+          confirmLabel="Rename"
+          onClose={() => setDialog(null)}
+          onConfirm={(name) => {
+            try {
+              apply(renameEntry(workspace, dialog.entry.id, name));
+              setDialog(null);
+            } catch (caught) {
+              throw caught instanceof Error ? caught : new Error("Unable to rename item");
+            }
+          }}
+        />
+      ) : null}
+      {dialog?.kind === "delete" ? (
+        <ActionDialog
+          title={`Delete “${dialog.entry.name}”?`}
+          description={
+            dialog.entry.type === "folder"
+              ? "This permanently removes the folder and everything inside it from this local workspace."
+              : "This permanently removes the file from this local workspace."
+          }
+          confirmLabel={dialog.entry.type === "folder" ? "Delete folder" : "Delete file"}
+          danger
+          onClose={() => setDialog(null)}
+          onConfirm={() => {
+            try {
+              apply(deleteEntry(workspace, dialog.entry.id));
+              setSelectedId(null);
+              setDialog(null);
+            } catch (caught) {
+              throw caught instanceof Error ? caught : new Error("Unable to delete item");
+            }
+          }}
+        />
       ) : null}
     </div>
   );

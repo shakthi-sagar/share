@@ -75,8 +75,8 @@ export function Share({ id }: { id: string }): React.JSX.Element {
         <div className="unlock-mark" aria-hidden="true">
           <KeyRound size={20} strokeWidth={1.6} />
         </div>
-        <h1>Encrypted share</h1>
-        <p>This bundle is encrypted. Enter the key provided by the sender.</p>
+        <h1>Unlock encrypted snapshot</h1>
+        <p>Enter the key from the sender. Decryption happens only in this browser.</p>
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -109,8 +109,7 @@ export function Share({ id }: { id: string }): React.JSX.Element {
           </p>
         ) : null}
         <p className="unlock-note" id="key-note">
-          The master secret is used only in this browser. The API receives a separate derived access
-          credential.
+          The API receives a separate access credential—not this key or the decrypted files.
         </p>
       </main>
     </div>
@@ -145,7 +144,9 @@ function ShareViewer({ share }: { share: UnlockedShare }): React.JSX.Element {
       <div className="viewer-body">
         <aside className={`file-sidebar ${drawerOpen ? "is-open" : ""}`}>
           <div className="sidebar-heading">
-            <span>{share.manifest.name}</span>
+            <span>
+              Files <small>{share.manifest.files.length}</small>
+            </span>
             <button
               className="icon-button sidebar-close"
               type="button"
@@ -173,7 +174,22 @@ function ShareViewer({ share }: { share: UnlockedShare }): React.JSX.Element {
           />
         ) : null}
         <main className="content-pane">
-          {selected ? <FilePreview share={share} file={selected} /> : <EmptyBundle />}
+          {selected ? (
+            <div className="viewer-file-view">
+              <div className="viewer-file-header">
+                <div>
+                  <strong title={selected.path}>{selected.path.split("/").at(-1)}</strong>
+                  <span title={selected.path}>{selected.path}</span>
+                </div>
+                <span>{formatBytes(selected.size)}</span>
+              </div>
+              <div className="viewer-file-content">
+                <FilePreview share={share} file={selected} />
+              </div>
+            </div>
+          ) : (
+            <EmptyBundle />
+          )}
         </main>
       </div>
     </div>
