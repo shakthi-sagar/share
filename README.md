@@ -84,6 +84,16 @@ client. Independently built CLI and MCP clients will use the same documented wir
 
 See [the protocol documentation](docs/protocol.md) for the key schedule and ciphertext format.
 
+## Project documentation
+
+- [Agent operating guide](AGENTS.md)
+- [Architecture](docs/architecture.md)
+- [Development guide](docs/development.md)
+- [Deployment guide](docs/deployment.md)
+- [Design decisions](docs/design-decisions.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)
+
 ## License
 
 [MIT](LICENSE)
