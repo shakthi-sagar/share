@@ -7,20 +7,22 @@ chosen.
 
 ## Product character
 
-The interface should feel quiet, precise, and trustworthy. The product action belongs in the first
-viewport, technical details appear only where they help a decision, and the visual hierarchy comes
-from spacing, type, borders, and state changes rather than decoration.
+The interface should feel like a precise technical workbench: compact, direct, and trustworthy.
+The current task belongs in the first viewport, technical details appear where they support a
+decision, and hierarchy comes from typography, borders, surface shifts, and state changes rather
+than decoration.
 
 Use:
 
-- a white canvas and restrained neutral surfaces
-- compact controls with direct labels
+- a light gray application canvas with white task surfaces
+- compact controls with persistent text labels for unfamiliar actions
 - monospaced type for paths, keys, sizes, and machine-oriented status
-- thin borders to group work areas
-- plain language that states exactly where encryption and decryption happen
+- thin borders and small radii to define work areas
+- a dark neutral primary action and a restrained orange functional indicator
+- plain language that distinguishes a local draft from an immutable published snapshot
 
 Avoid gradients, decorative security imagery, large shadows, oversized hero sections, pill-shaped
-controls, and grids of large rounded cards.
+primary controls, equal-weight action-card grids, and hidden hover-only actions required to proceed.
 
 ## Foundations
 
@@ -37,7 +39,8 @@ Use semantic variables instead of raw color values in component rules.
 | `--text-secondary`, `--text-muted` | Supporting and low-emphasis information |
 | `--text-on-primary` | Text or icons on the primary color |
 | `--border`, `--border-strong` | Default and emphasized boundaries |
-| `--primary`, `--primary-hover`, `--primary-tint` | Actions, focus, and selected items |
+| `--primary`, `--primary-hover`, `--primary-tint` | Primary actions, focus, and selected items |
+| `--accent`, `--accent-tint` | Functional progress and active-location indicators only |
 | `--danger`, `--success` | Error and success meaning |
 | `--overlay`, `--tap-highlight` | Transient interaction layers |
 
@@ -70,8 +73,8 @@ layout work. Optical adjustments of 1–3px are acceptable for icons, borders, a
 
 ### Shape, borders, and elevation
 
-- Controls use `--radius-control` (8px).
-- Panels use `--radius-panel` (10px).
+- Controls use `--radius-control` (6px).
+- Panels use `--radius-panel` (8px).
 - Fully round indicators use `--radius-round`.
 - Default structure uses a 1px border.
 - Avoid shadows unless content must visibly float above another interaction layer.
@@ -129,10 +132,19 @@ decrypt file content only when it is needed for preview or download.
 
 ### Workspace editor
 
-Keep workspace navigation compact and file-oriented. The header owns the workspace name, local-save
-status, and Share action. The sidebar owns creation, import, and hierarchy. The content pane owns
-entry actions and editing or preview. Clearly distinguish `Saved locally` from publishing, and
-describe Share as creating an immutable encrypted snapshot.
+Keep workspace navigation compact and file-oriented. The header owns the workspace name, explicit
+`Local draft` save status, and `Share snapshot` action. The sidebar owns labeled creation and import
+actions plus hierarchy. The content pane owns entry actions and editing or preview. Do not use
+browser prompts or confirms for create, rename, or delete; use the shared product dialog and keep
+validation errors in that dialog.
+
+### Publishing flow
+
+Publishing has three visible states: review, progress, and result. Review shows snapshot identity,
+file count, total size, bounded file list, expiry, and the immutable/local distinction. Progress
+shows the current path plus byte or chunk progress when available. Result makes `Copy full link`
+the dominant action and keeps split link/key controls in an advanced disclosure. Keep the secrecy
+warning adjacent to the full-link action.
 
 ## Responsive behavior
 

@@ -9,6 +9,7 @@
     "config:check": "node scripts/config.mjs check",
     "config:sync": "node scripts/config.mjs sync",
     "dev": "pnpm config:sync && pnpm --filter @share/web build && pnpm --parallel --filter @share/api-cloudflare --filter @share/web dev",
+    "dev:local": "node scripts/config.mjs sync --env-file .env.development && pnpm --filter @share/web build && pnpm --parallel --filter @share/api-cloudflare --filter @share/web dev:local",
     "deploy:cloudflare": "node scripts/config.mjs sync --production && pnpm build && pnpm --filter @share/api-cloudflare run deploy",
     "format": "biome format --write .",
     "lint": "biome lint .",
