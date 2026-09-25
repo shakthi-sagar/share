@@ -4,11 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "wrangler deploy --dry-run",
+    "build": "wrangler deploy --dry-run --config wrangler.generated.jsonc",
     "check": "tsc -p tsconfig.json --noEmit",
-    "dev": "wrangler dev",
+    "deploy": "wrangler d1 migrations apply DB --remote --config wrangler.generated.jsonc && wrangler deploy --config wrangler.generated.jsonc",
+    "dev": "wrangler dev --config wrangler.generated.jsonc",
     "test": "vitest run --passWithNoTests",
-    "types": "wrangler types"
+    "types": "wrangler types --config wrangler.generated.jsonc"
   },
   "dependencies": {
     "@share/protocol": "workspace:*",

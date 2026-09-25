@@ -8,10 +8,9 @@ export function Header(): React.JSX.Element {
         share
       </a>
       <nav className="site-nav" aria-label="Primary navigation">
-        <a href="/docs">Docs</a>
-        <a href="/docs/cli">CLI</a>
-        <a href="/docs/self-hosting">Self-host</a>
-        <a href="https://github.com">GitHub</a>
+        <a href="https://github.com/shakthi-sagar/share#readme">Docs</a>
+        <a href="https://github.com/shakthi-sagar/share#deployment">Self-host</a>
+        <a href="https://github.com/shakthi-sagar/share">GitHub</a>
       </nav>
     </header>
   );

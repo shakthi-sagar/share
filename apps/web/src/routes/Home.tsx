@@ -2,7 +2,7 @@ import { type CreatedShare, createEncryptedShare, type ShareProgress } from "@sh
 import { Check, FileText, FolderOpen, Plus, ShieldCheck, Trash2, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 import { CopyButton } from "../components/CopyButton";
-import { API_BASE_URL } from "../lib/config";
+import { API_BASE_URL, DEFAULT_EXPIRY_SECONDS, SHARE_BASE_URL } from "../lib/config";
 import { mergeSelected, selectedFromDrop, selectedFromFileList } from "../lib/files";
 import { bundleNameFromFiles, formatBytes, type SelectedFile } from "../lib/format";
 
@@ -11,7 +11,7 @@ type HomeState = "selecting" | "uploading" | "success";
 export function Home(): React.JSX.Element {
   const [files, setFiles] = useState<SelectedFile[]>([]);
   const [bundleName, setBundleName] = useState("Encrypted share");
-  const [expiry, setExpiry] = useState<number | null>(7 * 24 * 60 * 60);
+  const [expiry, setExpiry] = useState<number | null>(DEFAULT_EXPIRY_SECONDS);
   const [dragging, setDragging] = useState(false);
   const [state, setState] = useState<HomeState>("selecting");
   const [progress, setProgress] = useState<ShareProgress | null>(null);
@@ -34,7 +34,7 @@ export function Home(): React.JSX.Element {
     try {
       const created = await createEncryptedShare({
         apiBaseUrl: API_BASE_URL,
-        shareBaseUrl: window.location.origin,
+        shareBaseUrl: SHARE_BASE_URL,
         name: bundleName.trim() || "Encrypted share",
         files: files.map(({ file, path }) => ({
           path,

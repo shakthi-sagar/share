@@ -21,14 +21,24 @@ import { secureHeaders } from "hono/secure-headers";
 import { D1MetadataStore } from "./adapters/d1-metadata";
 import { R2BlobStore } from "./adapters/r2-blobs";
 
-type Bindings = { Bindings: Env };
+type Bindings = {
+  Bindings: Env & {
+    SHARE_ALLOWED_ORIGINS: string;
+    SHARE_ENV: string;
+  };
+};
 const app = new Hono<Bindings>();
 
 app.use("*", secureHeaders());
 app.use(
   "/v1/*",
   cors({
-    origin: "*",
+    origin: (origin, context) =>
+      context.env.SHARE_ALLOWED_ORIGINS.split(",")
+        .map((allowed: string) => allowed.trim())
+        .includes(origin)
+        ? origin
+        : undefined,
     allowHeaders: ["Authorization", "Content-Type"],
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     maxAge: 86400,

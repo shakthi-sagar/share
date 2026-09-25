@@ -4,8 +4,12 @@
   "private": true,
   "packageManager": "pnpm@10.5.2",
   "scripts": {
-    "build": "pnpm -r build",
+    "build": "pnpm config:sync && pnpm -r --filter './packages/**' build && pnpm --filter @share/web build && pnpm --filter @share/api-cloudflare build",
     "check": "pnpm -r check",
+    "config:check": "node scripts/config.mjs check",
+    "config:sync": "node scripts/config.mjs sync",
+    "dev": "pnpm config:sync && pnpm --filter @share/web build && pnpm --parallel --filter @share/api-cloudflare --filter @share/web dev",
+    "deploy": "node scripts/config.mjs sync --production && pnpm build && pnpm --filter @share/api-cloudflare deploy",
     "format": "biome format --write .",
     "lint": "biome lint .",
     "test": "pnpm -r test"
