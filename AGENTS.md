@@ -11,6 +11,7 @@ Read the documents relevant to the task:
 - [docs/protocol.md](docs/protocol.md) before any crypto, manifest, or authorization change
 - [docs/development.md](docs/development.md) for the local workflow and verification matrix
 - [docs/deployment.md](docs/deployment.md) before changing Cloudflare configuration or deploying
+- [docs/design-system.md](docs/design-system.md) for UI tokens, components, states, and review rules
 - [docs/design-decisions.md](docs/design-decisions.md) before changing the web interface
 
 ## Product contract
@@ -87,6 +88,8 @@ by Git.
 - Maintain accessible labels, keyboard behavior, focus states, and responsive layouts.
 - Follow the existing quiet, technical visual system. Do not add gradients, oversized marketing
   sections, ornamental security art, or large-radius card grids.
+- Reuse the semantic tokens and component patterns in `docs/design-system.md`. Do not introduce raw
+  colors, durations, or recurring dimensions without documenting why the system needs them.
 - Do not add a dependency when the platform API or a small local function is sufficient.
 - Update documentation in the same change when behavior, configuration, protocol, or deployment
   steps change.

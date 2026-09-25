@@ -17,6 +17,8 @@
 - [ ] `pnpm test`
 - [ ] `pnpm build`
 - [ ] Relevant desktop and narrow UI flows were checked when applicable.
+- [ ] UI changes reuse design-system tokens and cover relevant interaction states.
+- [ ] Keyboard focus, labels, contrast, and reduced motion were checked when applicable.
 - [ ] `pnpm smoke:deployment` passed after an authorized deployment when applicable.
 
 ## Deployment notes

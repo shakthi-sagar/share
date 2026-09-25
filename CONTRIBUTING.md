@@ -40,8 +40,10 @@ not already public configuration.
 
 ## Design changes
 
-Follow [docs/design-decisions.md](docs/design-decisions.md). Include desktop and narrow-layout
-evidence for meaningful UI changes and describe keyboard or accessibility behavior.
+Follow [docs/design-system.md](docs/design-system.md) and
+[docs/design-decisions.md](docs/design-decisions.md). Reuse semantic tokens and existing component
+patterns. Include desktop and narrow-layout evidence for meaningful UI changes and describe
+keyboard, state, and accessibility behavior.
 
 ## Protocol changes
 

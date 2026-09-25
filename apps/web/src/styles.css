@@ -9,8 +9,11 @@
   --surface-subtle: #f7f7f9;
   --surface-hover: #f2f2f5;
   --text: #111114;
+  --text-reading: #303038;
   --text-secondary: #5f606b;
   --text-muted: #858690;
+  --text-on-primary: #ffffff;
+  --text-code: #24242b;
   --border: #e7e7ec;
   --border-strong: #d2d2da;
   --primary: #303055;
@@ -18,9 +21,35 @@
   --primary-tint: #eeeef5;
   --danger: #a43939;
   --success: #2f6e4f;
+  --surface-success: #edf6f1;
+  --surface-code: #f8f8fa;
+  --overlay: rgb(17 17 20 / 20%);
+  --tap-highlight: rgb(48 48 85 / 10%);
   --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-  --radius-control: 7px;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-ui: 13px;
+  --text-body: 15px;
+  --text-reading-size: 16px;
+  --text-lead: 17px;
+  --text-title-sm: 19px;
+  --text-title-md: 28px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-14: 56px;
+  --radius-control: 8px;
   --radius-panel: 10px;
+  --radius-round: 999px;
+  --control-height: 36px;
+  --icon-control-size: 32px;
+  --viewer-header-height: 56px;
   --duration-fast: 120ms;
   --duration-default: 200ms;
   --ease-out: cubic-bezier(0, 0, 0.2, 1);
@@ -41,7 +70,7 @@ body {
   margin: 0;
   background: var(--page);
   color: var(--text);
-  font-size: 15px;
+  font-size: var(--text-body);
   line-height: 1.5;
 }
 
@@ -54,7 +83,7 @@ select {
 button,
 a {
   touch-action: manipulation;
-  -webkit-tap-highlight-color: rgb(48 48 85 / 10%);
+  -webkit-tap-highlight-color: var(--tap-highlight);
 }
 
 a {
@@ -98,7 +127,7 @@ select:focus-visible {
   border: 1px solid var(--text);
   border-radius: 5px;
   background: var(--text);
-  color: #fff;
+  color: var(--text-on-primary);
 }
 
 .site-nav {
@@ -280,7 +309,7 @@ select:focus-visible {
 }
 
 .button {
-  min-height: 36px;
+  min-height: var(--control-height);
   padding: 0 13px;
   border: 1px solid transparent;
   border-radius: var(--radius-control);
@@ -311,7 +340,7 @@ select:focus-visible {
 .button-primary {
   border-color: var(--primary);
   background: var(--primary);
-  color: #fff;
+  color: var(--text-on-primary);
 }
 
 .button-primary:hover:not(:disabled) {
@@ -375,8 +404,8 @@ select:focus-visible {
 }
 
 .icon-button {
-  width: 32px;
-  height: 32px;
+  width: var(--icon-control-size);
+  height: var(--icon-control-size);
   padding: 0;
   border: 0;
   border-radius: 6px;
@@ -438,7 +467,7 @@ select:focus-visible {
 .progress-track {
   height: 3px;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: var(--radius-round);
   background: var(--surface-hover);
 }
 
@@ -502,12 +531,12 @@ select:focus-visible {
 }
 
 .success-mark {
-  width: 32px;
-  height: 32px;
+  width: var(--icon-control-size);
+  height: var(--icon-control-size);
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: #edf6f1;
+  background: var(--surface-success);
   color: var(--success);
 }
 
@@ -644,7 +673,7 @@ select:focus-visible {
 }
 
 .viewer-header {
-  height: 56px;
+  height: var(--viewer-header-height);
   padding: 0 18px;
   border-bottom: 1px solid var(--border);
   display: grid;
@@ -673,7 +702,7 @@ select:focus-visible {
 }
 
 .viewer-body {
-  height: calc(100vh - 56px);
+  height: calc(100vh - var(--viewer-header-height));
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr);
 }
@@ -763,7 +792,7 @@ select:focus-visible {
 .markdown-body {
   width: min(760px, calc(100% - 64px));
   margin: 56px auto 100px;
-  font-size: 16px;
+  font-size: var(--text-reading-size);
   line-height: 1.7;
 }
 
@@ -794,7 +823,7 @@ select:focus-visible {
 
 .markdown-body p,
 .markdown-body li {
-  color: #303038;
+  color: var(--text-reading);
 }
 
 .markdown-body code,
@@ -815,8 +844,8 @@ select:focus-visible {
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: #f8f8fa;
-  color: #24242b;
+  background: var(--surface-code);
+  color: var(--text-code);
 }
 
 .markdown-body pre {
@@ -1004,7 +1033,7 @@ select:focus-visible {
   .file-sidebar {
     position: fixed;
     z-index: 20;
-    inset: 56px auto 0 0;
+    inset: var(--viewer-header-height) auto 0 0;
     width: min(86vw, 330px);
     transform: translateX(-100%);
     transition: transform var(--duration-default) var(--ease-in-out);
@@ -1021,10 +1050,10 @@ select:focus-visible {
   .drawer-scrim {
     position: fixed;
     z-index: 10;
-    inset: 56px 0 0;
+    inset: var(--viewer-header-height) 0 0;
     display: block;
     border: 0;
-    background: rgb(17 17 20 / 20%);
+    background: var(--overlay);
   }
 
   .markdown-body {

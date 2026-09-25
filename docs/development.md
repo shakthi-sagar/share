@@ -74,8 +74,9 @@ Keep encryption and transport logic in `@share/client`. Components own interacti
 Preserve relative paths for nested folders and fetch file ciphertext only when the user selects or
 downloads that file.
 
-Follow `docs/design-decisions.md`. Verify keyboard access, visible focus, readable error states,
-mobile layout, and long filenames.
+Follow `docs/design-system.md` and `docs/design-decisions.md`. Reuse semantic tokens and established
+component patterns. Verify keyboard access, visible focus, complete interaction states, readable
+errors, mobile layout, and long filenames.
 
 ### New client surfaces
 

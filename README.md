@@ -90,6 +90,7 @@ See [the protocol documentation](docs/protocol.md) for the key schedule and ciph
 - [Architecture](docs/architecture.md)
 - [Development guide](docs/development.md)
 - [Deployment guide](docs/deployment.md)
+- [Web design system](docs/design-system.md)
 - [Design decisions](docs/design-decisions.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
