@@ -33,14 +33,35 @@ export function ActionDialog({
   useEffect(() => {
     inputRef.current?.focus();
     inputRef.current?.select();
+  }, []);
+
+  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === "Escape" && !busy) onClose();
+      if (event.key === "Escape" && !busy) {
+        event.stopPropagation();
+        onClose();
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [busy, onClose]);
 
   const canSubmit = !inputLabel || value.trim().length > 0;
+
+  function handleSubmit(event: React.FormEvent): void {
+    event.preventDefault();
+    if (!canSubmit || busy) return;
+    setBusy(true);
+    setError(null);
+    void Promise.resolve(onConfirm(value.trim()))
+      .then(() => {
+        onClose();
+      })
+      .catch((caught: unknown) => {
+        setBusy(false);
+        setError(caught instanceof Error ? caught.message : "Unable to complete this action");
+      });
+  }
 
   return (
     <div className="modal-backdrop" role="presentation">
@@ -50,16 +71,7 @@ export function ActionDialog({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (!canSubmit || busy) return;
-          setBusy(true);
-          setError(null);
-          void Promise.resolve(onConfirm(value.trim())).catch((caught: unknown) => {
-            setBusy(false);
-            setError(caught instanceof Error ? caught.message : "Unable to complete this action");
-          });
-        }}
+        onSubmit={handleSubmit}
       >
         <div className="dialog-header">
           <div>

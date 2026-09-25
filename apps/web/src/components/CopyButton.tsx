@@ -29,7 +29,7 @@ export function CopyButton({
         setCopied(true);
       }}
     >
-      {copied ? <Check size={15} /> : <Copy size={15} />}
+      {copied ? <Check size={16} /> : <Copy size={16} />}
       {copied ? "Copied" : label}
     </button>
   );

@@ -18,8 +18,8 @@ export function SharePublisher({
   onClose: () => void;
 }): React.JSX.Element {
   const files = workspaceFiles(workspace);
-  const [expiry, setExpiry] = useState<number | null>(DEFAULT_EXPIRY_SECONDS);
   const [state, setState] = useState<PublishState>("ready");
+  const [expiry, setExpiry] = useState<number | null>(DEFAULT_EXPIRY_SECONDS);
   const [progress, setProgress] = useState<ShareProgress | null>(null);
   const [result, setResult] = useState<CreatedShare | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,8 +34,9 @@ export function SharePublisher({
   }, [onClose, state]);
 
   async function publish(): Promise<void> {
-    setError(null);
+    if (files.length === 0) return;
     setState("uploading");
+    setError(null);
     try {
       const created = await createEncryptedShare({
         apiBaseUrl: API_BASE_URL,
@@ -62,27 +63,23 @@ export function SharePublisher({
   return (
     <div className="modal-backdrop" role="presentation">
       <section
-        className="publish-dialog"
+        className="action-dialog publish-dialog"
+        aria-labelledby="publish-heading"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="publish-heading"
       >
         <div className="dialog-header">
           <div>
-            <p className="eyebrow">Encrypted snapshot</p>
+            {state === "success" ? null : <p className="eyebrow">Encrypted snapshot</p>}
             <h2 id="publish-heading">
               {state === "success" ? "Snapshot published" : "Review and publish"}
             </h2>
           </div>
-          <button
-            className="icon-button"
-            type="button"
-            aria-label="Close share dialog"
-            disabled={state === "uploading"}
-            onClick={onClose}
-          >
-            <X size={17} />
-          </button>
+          {state === "uploading" ? null : (
+            <button className="icon-button" type="button" aria-label="Close" onClick={onClose}>
+              <X size={18} />
+            </button>
+          )}
         </div>
 
         {state === "success" && result ? (
@@ -91,7 +88,7 @@ export function SharePublisher({
           <>
             <div className="snapshot-identity">
               <span className="snapshot-icon" aria-hidden="true">
-                <LockKeyhole size={18} />
+                <LockKeyhole size={20} />
               </span>
               <div>
                 <strong>{workspace.name}</strong>
@@ -122,7 +119,7 @@ export function SharePublisher({
               <ul>
                 {files.map(({ entry, path }) => (
                   <li key={entry.id}>
-                    <File size={13} aria-hidden="true" />
+                    <File size={14} aria-hidden="true" />
                     <code title={path}>{path}</code>
                     <span>{formatBytes(entry.blob.size)}</span>
                   </li>
@@ -271,9 +268,9 @@ function PublishSuccess({
 }): React.JSX.Element {
   return (
     <div className="publish-success">
-      <div className="success-heading">
-        <span className="success-mark">
-          <Check size={18} />
+      <div className="success-identity">
+        <span className="snapshot-icon" aria-hidden="true">
+          <Check size={20} />
         </span>
         <div>
           <h3>Encrypted and ready</h3>
@@ -327,8 +324,11 @@ function PublishSuccess({
 }
 
 function formatExpiry(value: string): string {
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
+  const date = new Date(value);
+  return date.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }

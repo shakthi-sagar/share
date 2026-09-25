@@ -73,7 +73,7 @@ export function Share({ id }: { id: string }): React.JSX.Element {
       <Header />
       <main className="unlock-main">
         <div className="unlock-mark" aria-hidden="true">
-          <KeyRound size={20} strokeWidth={1.6} />
+          <KeyRound size={24} />
         </div>
         <h1>Unlock encrypted snapshot</h1>
         <p>Enter the key from the sender. Decryption happens only in this browser.</p>
@@ -142,37 +142,6 @@ function ShareViewer({ share }: { share: UnlockedShare }): React.JSX.Element {
         </div>
       </header>
       <div className="viewer-body">
-        <aside className={`file-sidebar ${drawerOpen ? "is-open" : ""}`}>
-          <div className="sidebar-heading">
-            <span>
-              Files <small>{share.manifest.files.length}</small>
-            </span>
-            <button
-              className="icon-button sidebar-close"
-              type="button"
-              aria-label="Close files"
-              onClick={() => setDrawerOpen(false)}
-            >
-              <X size={17} />
-            </button>
-          </div>
-          <FileTree
-            files={share.manifest.files}
-            selected={selected}
-            onSelect={(file) => {
-              setSelected(file);
-              setDrawerOpen(false);
-            }}
-          />
-        </aside>
-        {drawerOpen ? (
-          <button
-            className="drawer-scrim"
-            type="button"
-            aria-label="Close files"
-            onClick={() => setDrawerOpen(false)}
-          />
-        ) : null}
         <main className="content-pane">
           {selected ? (
             <div className="viewer-file-view">
@@ -191,6 +160,39 @@ function ShareViewer({ share }: { share: UnlockedShare }): React.JSX.Element {
             <EmptyBundle />
           )}
         </main>
+
+        <aside className={`file-sidebar ${drawerOpen ? "is-open" : ""}`}>
+          <div className="sidebar-heading">
+            <span>
+              Files <small>{share.manifest.files.length}</small>
+            </span>
+            <button
+              className="icon-button sidebar-close"
+              type="button"
+              aria-label="Close files"
+              onClick={() => setDrawerOpen(false)}
+            >
+              <X size={18} />
+            </button>
+          </div>
+          <FileTree
+            files={share.manifest.files}
+            selected={selected}
+            onSelect={(file) => {
+              setSelected(file);
+              setDrawerOpen(false);
+            }}
+          />
+        </aside>
+
+        {drawerOpen ? (
+          <button
+            className="drawer-scrim"
+            type="button"
+            aria-label="Close files"
+            onClick={() => setDrawerOpen(false)}
+          />
+        ) : null}
       </div>
     </div>
   );
@@ -247,7 +249,7 @@ function TreeNodes({
   return (
     <div role={depth === 0 ? "presentation" : "group"}>
       {nodes.map((node) => {
-        const paddingInlineStart = 9 + depth * 16;
+        const paddingInlineStart = 8 + depth * 14;
         if (node.kind === "directory") {
           const isExpanded = expanded.has(node.path);
           return (
@@ -262,7 +264,7 @@ function TreeNodes({
                 style={{ paddingInlineStart }}
               >
                 <span className="tree-chevron" aria-hidden="true">
-                  {isExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                  {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                 </span>
                 <Folder size={15} />
                 <span className="tree-path">{node.name}</span>
@@ -290,7 +292,7 @@ function TreeNodes({
             key={node.file.id}
             onClick={() => onSelect(node.file)}
             title={node.path}
-            style={{ paddingInlineStart: paddingInlineStart + 21 }}
+            style={{ paddingInlineStart: paddingInlineStart + 20 }}
           >
             <FileIcon file={node.file} />
             <span className="tree-path">{node.name}</span>
@@ -380,7 +382,7 @@ function FilePreview({
   }
   return (
     <div className="binary-viewer">
-      <File size={30} strokeWidth={1.4} />
+      <File size={32} strokeWidth={1.4} />
       <h1>{file.path.split("/").at(-1)}</h1>
       <p>{formatBytes(file.size)}</p>
       <p>This file cannot be previewed.</p>
@@ -419,22 +421,26 @@ function DownloadButton({
         }
       }}
     >
-      <Download size={15} /> {downloading ? "Decrypting…" : "Download"}
+      <Download size={16} />
+      {downloading ? "Downloading…" : "Download"}
     </button>
   );
 }
 
-function FileIcon({ file }: { file: ManifestFile }): React.JSX.Element {
-  if (file.mime.startsWith("image/")) return <FileImage size={15} />;
-  if (filePreviewKind(file.path, file.mime) === "markdown") return <FileText size={15} />;
-  if (filePreviewKind(file.path, file.mime) === "text") return <FileCode2 size={15} />;
-  return <File size={15} />;
-}
-
 function EmptyBundle(): React.JSX.Element {
   return (
-    <div className="content-state">
-      <Folder size={18} /> This bundle contains no files.
+    <div className="workspace-empty">
+      <Folder size={32} />
+      <h1>No files in this snapshot</h1>
+      <p>This encrypted snapshot does not contain any files.</p>
     </div>
   );
+}
+
+function FileIcon({ file }: { file: ManifestFile }): React.JSX.Element {
+  const kind = filePreviewKind(file.path, file.mime);
+  if (kind === "image") return <FileImage size={15} />;
+  if (kind === "markdown") return <FileText size={15} />;
+  if (kind === "text") return <FileCode2 size={15} />;
+  return <File size={15} />;
 }

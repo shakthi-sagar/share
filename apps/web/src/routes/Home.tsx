@@ -1,5 +1,4 @@
 import {
-  ArrowRight,
   Copy,
   FilePlus2,
   FileUp,
@@ -90,26 +89,24 @@ export function Home(): React.JSX.Element {
   return (
     <main className="home-shell workspace-home">
       <section className="workspace-intro">
-        <p className="eyebrow">End-to-end encrypted sharing</p>
-        <h1>A local workspace. An encrypted link.</h1>
+        <h1>Encrypted file sharing, simplified.</h1>
         <p>
-          Organize files in this browser, then publish an immutable snapshot only when it is ready.
+          Organize files locally in your browser, then publish an immutable encrypted snapshot when
+          it is ready.
         </p>
       </section>
 
       <section className="workspace-launch" aria-labelledby="start-heading">
         <div className="workspace-launch-heading">
-          <div>
-            <h2 id="start-heading">New workspace</h2>
-            <p>Nothing is uploaded until you choose Share.</p>
-          </div>
+          <h2 id="start-heading">Start a workspace</h2>
           <span className="local-badge">
-            <HardDrive size={12} aria-hidden="true" /> Local draft
+            <HardDrive size={12} aria-hidden="true" /> Local only
           </span>
         </div>
 
-        <section
+        <button
           className={`workspace-dropzone ${dragging ? "is-dragging" : ""}`}
+          type="button"
           aria-label="Drop files to create a workspace"
           onDragEnter={(event) => {
             event.preventDefault();
@@ -129,13 +126,13 @@ export function Home(): React.JSX.Element {
           }}
         >
           <span className="dropzone-symbol" aria-hidden="true">
-            <FileUp size={22} />
+            <FileUp size={24} />
           </span>
-          <div>
+          <span>
             <strong>Drop files here</strong>
             <span>or choose how to start</span>
-          </div>
-        </section>
+          </span>
+        </button>
 
         <div className="workspace-launch-actions">
           <button
@@ -144,7 +141,7 @@ export function Home(): React.JSX.Element {
             disabled={busy}
             onClick={() => fileInput.current?.click()}
           >
-            <FileUp size={15} /> Choose files
+            <FileUp size={16} /> Choose files
           </button>
           <button
             className="button button-secondary"
@@ -152,7 +149,7 @@ export function Home(): React.JSX.Element {
             disabled={busy}
             onClick={() => folderInput.current?.click()}
           >
-            <FolderInput size={15} /> Choose folder
+            <FolderInput size={16} /> Choose folder
           </button>
           <button
             className="button button-quiet"
@@ -160,39 +157,36 @@ export function Home(): React.JSX.Element {
             disabled={busy}
             onClick={() => void openNewWorkspace(createWorkspace())}
           >
-            <FilePlus2 size={15} /> Start empty
+            <FilePlus2 size={16} /> Start empty
           </button>
         </div>
 
         <p className="workspace-launch-note">
-          <ShieldCheck size={14} aria-hidden="true" /> Files stay in IndexedDB on this device. A
-          published snapshot is encrypted in this browser before upload.
+          <ShieldCheck size={14} aria-hidden="true" /> Files stay in this browser until you publish
+          an encrypted snapshot.
         </p>
       </section>
 
       <section className="recent-workspaces" aria-labelledby="recent-heading">
         <div className="section-heading workspace-library-heading">
-          <div>
-            <h2 id="recent-heading">Workspaces</h2>
-            <p>
-              {workspaces.length === 0
-                ? "Local drafts appear here."
-                : `${workspaces.length} stored locally`}
-            </p>
-          </div>
+          <h2 id="recent-heading">
+            {loading
+              ? "Workspaces"
+              : `${workspaces.length} local workspace${workspaces.length === 1 ? "" : "s"}`}
+          </h2>
         </div>
 
-        {loading ? <p className="empty-library">Loading local workspaces…</p> : null}
-        {!loading && workspaces.length === 0 ? (
+        {loading ? (
+          <p className="empty-library">Loading local workspaces…</p>
+        ) : workspaces.length === 0 ? (
           <div className="empty-library">
-            <FolderOpen size={20} />
+            <FolderOpen size={22} />
             <div>
               <strong>No workspaces yet</strong>
               <p>Drop files above or start with an empty workspace.</p>
             </div>
           </div>
-        ) : null}
-        {workspaces.length > 0 ? (
+        ) : (
           <div className="workspace-table">
             <div className="workspace-table-head" aria-hidden="true">
               <span>Name</span>
@@ -207,10 +201,7 @@ export function Home(): React.JSX.Element {
                 return (
                   <li key={workspace.id}>
                     <a className="workspace-list-main" href={`/w/${workspace.id}`}>
-                      <span className="workspace-list-name">
-                        {workspace.name}
-                        <ArrowRight size={14} aria-hidden="true" />
-                      </span>
+                      <span className="workspace-list-name">{workspace.name}</span>
                       <span>
                         {files.length} {files.length === 1 ? "file" : "files"} ·{" "}
                         {formatBytes(totalSize)}
@@ -225,7 +216,7 @@ export function Home(): React.JSX.Element {
                         title="Rename"
                         onClick={() => setDialog({ kind: "rename", workspace })}
                       >
-                        <Pencil size={15} />
+                        <Pencil size={16} />
                       </button>
                       <button
                         className="icon-button"
@@ -245,7 +236,7 @@ export function Home(): React.JSX.Element {
                           }
                         }}
                       >
-                        <Copy size={15} />
+                        <Copy size={16} />
                       </button>
                       <button
                         className="icon-button danger-action"
@@ -254,7 +245,7 @@ export function Home(): React.JSX.Element {
                         title="Delete"
                         onClick={() => setDialog({ kind: "delete", workspace })}
                       >
-                        <Trash2 size={15} />
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   </li>
@@ -262,7 +253,7 @@ export function Home(): React.JSX.Element {
               })}
             </ul>
           </div>
-        ) : null}
+        )}
       </section>
 
       {error ? (
@@ -302,23 +293,29 @@ export function Home(): React.JSX.Element {
           confirmLabel="Rename"
           onClose={() => setDialog(null)}
           onConfirm={async (name) => {
-            await workspaceStore.update(renameWorkspace(dialog.workspace, name));
-            setDialog(null);
-            await refresh();
+            try {
+              await workspaceStore.update(renameWorkspace(dialog.workspace, name));
+              await refresh();
+            } catch (caught) {
+              throw caught instanceof Error ? caught : new Error("Unable to rename workspace");
+            }
           }}
         />
       ) : null}
       {dialog?.kind === "delete" ? (
         <ActionDialog
           title={`Delete “${dialog.workspace.name}”?`}
-          description="This permanently removes the local workspace and its files from this browser. Published snapshots are not affected."
+          description="This permanently removes the workspace and all its files from this browser."
           confirmLabel="Delete workspace"
           danger
           onClose={() => setDialog(null)}
           onConfirm={async () => {
-            await workspaceStore.delete(dialog.workspace.id);
-            setDialog(null);
-            await refresh();
+            try {
+              await workspaceStore.delete(dialog.workspace.id);
+              await refresh();
+            } catch (caught) {
+              throw caught instanceof Error ? caught : new Error("Unable to delete workspace");
+            }
           }}
         />
       ) : null}
@@ -326,15 +323,14 @@ export function Home(): React.JSX.Element {
   );
 }
 
-function formatRelativeTime(timestamp: number): string {
-  const difference = Date.now() - timestamp;
-  const minutes = Math.floor(difference / 60_000);
-  if (minutes < 1) return "just now";
+function formatRelativeTime(value: number): string {
+  const seconds = Math.floor((Date.now() - value) / 1000);
+  if (seconds < 60) return "Just now";
+  const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${minutes}m ago`;
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
-  if (days === 1) return "yesterday";
-  if (days < 7) return `${days}d ago`;
-  return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(timestamp);
+  if (days < 30) return `${days}d ago`;
+  return new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }

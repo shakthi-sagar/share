@@ -9,45 +9,45 @@ whether plaintext or the master secret reaches the API.
 
 ## Research
 
-Refero research reviewed Factory.ai, Tailscale, Dropbox, SST, and shadcn visual systems; Skiff Drive,
-Dropbox link settings, and Rork workspace screens; and the Skiff file-import, Shuttle sharing, and
-Dropbox viewing-link flows.
+Refero research reviewed Dub, Tailscale, SST, and shadcn visual systems; Dropbox, MonoDesk, and
+Programa file-sharing screens; and Dropbox file-request and Rox document-publish flows.
 
 ## Reference lock
 
-- Primary direction: Factory.ai's precise technical workbench.
-- Preserve: light gray canvas, white task surfaces, compact UI typography, small radii, thin borders,
-  dense-but-readable application chrome, and functional product visuals rather than decoration.
-- Borrow from Skiff: one obvious import entry, a bounded file queue/list, and an empty-to-populated
-  workspace transition that keeps import available.
-- Borrow from Tailscale: direct trust language and restrained use of a security accent.
-- Borrow from Dropbox: a focused share-settings hierarchy and confirmation in context.
+- Primary direction: Dub's clean link-sharing workbench.
+- Preserve: bright white surfaces, crisp near-black text, single vivid orange CTA, compact
+  pill-shaped badges, and generous whitespace that keeps the task in focus.
+- Borrow from Tailscale: direct trust language, light gray canvas, and technical restraint.
+- Borrow from Dropbox/MonoDesk: a clear file workspace with a right-side file tree and a centered
+  share-modal pattern.
 - Keep from SST: monospaced machine data and technical editorial restraint.
-- Reject: marketing-style hero dominance, equal-weight action-card grids, decorative security art,
-  gradients, large soft SaaS cards, hidden essential actions, and browser prompt/confirm dialogs.
+- Reject: dark-mode command centers, decorative security imagery, gradients, oversized hero
+  sections, equal-weight action-card grids, hidden essential actions, and browser prompt/confirm
+  dialogs.
 
 ## Token commitments
 
 | Decision | Source | Role |
 | --- | --- | --- |
-| `#f1f1ef` canvas and white task surfaces | Factory.ai and Tailscale | Application background and active work areas |
-| `#181817` primary | Factory.ai | Primary actions, focus, and strongest emphasis |
-| `#d15432` accent | Factory.ai functional orange | Progress and active-location indicators only |
-| System sans plus system mono | Factory.ai/SST and performance craft | UI/readable prose plus paths, sizes, keys, and progress |
-| 6px control radius and 8px panel radius | Factory.ai | Compact controls and bounded work areas |
-| 1px borders and shadows only for overlays | Factory.ai/Tailscale | Structure without ornamental elevation |
+| `#fafafa` canvas and `#ffffff` surfaces | Dub clean workbench | Page background and active work areas |
+| `#171717` text | Dub/Tailscale | Primary text and headings |
+| `#f97316` primary | Dub Ember Glow | Primary call-to-action and active states |
+| `#737373` secondary and `#a3a3a3` muted | Dub grayscale | Supporting and low-emphasis text |
+| System sans plus system mono | Dub/SST | UI/readable prose plus paths, sizes, keys, and progress |
+| 8px control radius and 12px panel radius | Dub | Buttons, inputs, and card containers |
+| 1px borders and subtle shadows | Dub/Tailscale | Structure without ornamental elevation |
 | 120ms and 200ms motion | Existing product system | Feedback and state continuity |
-| 720–760px readable Markdown measure | Existing viewer contract | Long-form artifact reading |
+| 720px readable Markdown measure | Existing viewer contract | Long-form artifact reading |
 
 ## UX commitments
 
-- Home leads with one workspace-start surface: drop files, choose files, choose a folder, or start
-  empty. Recent workspaces are a file-oriented table, not cards.
+- Home leads with one focused workspace-start card: drop files, choose files, choose a folder, or
+  start empty. Recent workspaces are a clean file-oriented list, not cards.
 - Local draft status remains visible in the workspace header. Publishing is always labeled as an
   immutable snapshot.
 - Create, rename, and delete use product dialogs with contextual consequences and recoverable
   validation errors.
 - Publishing is review → progress → result. The result prioritizes the full secret link and places
   split link/key controls behind an advanced disclosure.
-- Recipient viewing keeps artifact identity in the reading pane and navigation in the file tree.
+- Workspace and recipient viewing keep the content pane primary and the file tree on the right.
 - No visual or UX language may imply the API can read plaintext or recover the master secret.

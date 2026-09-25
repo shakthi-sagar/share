@@ -7,18 +7,18 @@ chosen.
 
 ## Product character
 
-The interface should feel like a precise technical workbench: compact, direct, and trustworthy.
-The current task belongs in the first viewport, technical details appear where they support a
-decision, and hierarchy comes from typography, borders, surface shifts, and state changes rather
-than decoration.
+The interface should feel like a clean, focused workbench for encrypted sharing: bright, direct,
+and trustworthy. The current task belongs in the first viewport, technical details appear where they
+support a decision, and hierarchy comes from whitespace, type weight, borders, and a single vivid
+accent rather than decoration.
 
 Use:
 
-- a light gray application canvas with white task surfaces
-- compact controls with persistent text labels for unfamiliar actions
+- a near-white canvas with white card surfaces
+- compact controls with clear, persistent labels
 - monospaced type for paths, keys, sizes, and machine-oriented status
-- thin borders and small radii to define work areas
-- a dark neutral primary action and a restrained orange functional indicator
+- thin borders and small-to-medium radii to define work areas
+- a vivid orange primary action and a restrained functional palette
 - plain language that distinguishes a local draft from an immutable published snapshot
 
 Avoid gradients, decorative security imagery, large shadows, oversized hero sections, pill-shaped
@@ -33,14 +33,13 @@ Use semantic variables instead of raw color values in component rules.
 | Token | Role |
 | --- | --- |
 | `--page`, `--surface` | Main page and component backgrounds |
-| `--surface-subtle`, `--surface-hover` | Secondary areas, selections, and hover feedback |
-| `--surface-code`, `--surface-success` | Code presentation and positive status surfaces |
+| `--surface-subtle`, `--surface-hover`, `--surface-pressed` | Secondary areas, selections, and state feedback |
+| `--surface-code`, `--surface-success`, `--danger-tint` | Code presentation and status surfaces |
 | `--text`, `--text-reading` | Primary UI and long-form reading text |
 | `--text-secondary`, `--text-muted` | Supporting and low-emphasis information |
 | `--text-on-primary` | Text or icons on the primary color |
 | `--border`, `--border-strong` | Default and emphasized boundaries |
 | `--primary`, `--primary-hover`, `--primary-tint` | Primary actions, focus, and selected items |
-| `--accent`, `--accent-tint` | Functional progress and active-location indicators only |
 | `--danger`, `--success` | Error and success meaning |
 | `--overlay`, `--tap-highlight` | Transient interaction layers |
 
@@ -66,18 +65,18 @@ component as the first reference. Add a new size only when a distinct recurring 
 Spacing follows a 4px base scale: `--space-1` through `--space-14`. Prefer these tokens for new
 layout work. Optical adjustments of 1–3px are acceptable for icons, borders, and text alignment.
 
-- Keep the upload workflow within the existing 860px content measure.
-- Keep long-form Markdown near a 720–760px reading measure.
-- Keep the viewer sidebar compact; filenames need the majority of each row.
+- Keep the home workflow within a 720px content measure.
+- Keep long-form Markdown near a 720px reading measure.
+- Keep the file sidebar compact; filenames need the majority of each row.
 - Use whitespace before adding containers or separators.
 
 ### Shape, borders, and elevation
 
-- Controls use `--radius-control` (6px).
-- Panels use `--radius-panel` (8px).
+- Controls use `--radius-control` (8px).
+- Panels use `--radius-panel` (12px).
 - Fully round indicators use `--radius-round`.
 - Default structure uses a 1px border.
-- Avoid shadows unless content must visibly float above another interaction layer.
+- Shadows are subtle and reserved for dialogs, toasts, and focused cards.
 
 ### Motion
 
@@ -126,15 +125,15 @@ can do next. Success state must keep the share link and its secrecy requirement 
 
 ### Artifact viewer
 
-The viewer keeps global actions in its fixed header, navigation in the file tree, and the selected
-artifact in the reading pane. Render unsupported formats as a clear download state. Fetch and
+The viewer keeps global actions in its fixed header, navigation in the right file tree, and the
+selected artifact in the reading pane. Render unsupported formats as a clear download state. Fetch and
 decrypt file content only when it is needed for preview or download.
 
 ### Workspace editor
 
 Keep workspace navigation compact and file-oriented. The header owns the workspace name, explicit
-`Local draft` save status, and `Share snapshot` action. The sidebar owns labeled creation and import
-actions plus hierarchy. The content pane owns entry actions and editing or preview. Do not use
+`Saved locally` status, and `Share snapshot` action. The right sidebar owns labeled creation and
+import actions plus hierarchy. The content pane owns entry actions and editing or preview. Do not use
 browser prompts or confirms for create, rename, or delete; use the shared product dialog and keep
 validation errors in that dialog.
 
@@ -150,8 +149,8 @@ warning adjacent to the full-link action.
 
 The primary breakpoint is `760px`.
 
-- Above it, the viewer uses a persistent sidebar and reading pane.
-- At or below it, the sidebar becomes a dismissible drawer with a scrim.
+- Above it, the viewer and workspace use a content-first layout with a right sidebar.
+- At or below it, the sidebar becomes a slide-in drawer from the right with a scrim.
 - Keep the current task and primary action visible without horizontal scrolling.
 - Long names truncate; action groups may stack; content remains selectable and scrollable.
 - Test the smallest supported viewport with long filenames, nested folders, errors, and progress.
@@ -160,7 +159,7 @@ The primary breakpoint is `760px`.
 
 - Support keyboard use for every action and preserve the shared `:focus-visible` ring.
 - Use semantic buttons, links, labels, headings, lists, and status regions before adding ARIA.
-- Maintain at least the existing 36px button and 32px icon-control targets with enough separation.
+- Maintain at least the existing 40px button and 36px icon-control targets with enough separation.
 - Provide text alternatives for meaningful icons and hide decorative icons from assistive tools.
 - Keep text and controls at WCAG AA contrast or better.
 - Announce asynchronous progress, completion, and errors when they affect the current task.
