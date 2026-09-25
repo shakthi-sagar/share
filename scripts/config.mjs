@@ -26,6 +26,9 @@ if (command === "sync") {
     ...base,
     name: config.cloudflare.workerName,
     ...(config.cloudflare.accountId ? { account_id: config.cloudflare.accountId } : {}),
+    ...(config.customDomain
+      ? { routes: [{ pattern: config.customDomain, custom_domain: true }] }
+      : {}),
     vars: {
       SHARE_ENV: config.environment,
       SHARE_ALLOWED_ORIGINS: config.allowedOrigins.join(","),
@@ -89,6 +92,16 @@ function readConfig({ production: requireProduction }) {
     d1Id: required("CLOUDFLARE_D1_ID"),
     r2Bucket: resourceName("CLOUDFLARE_R2_BUCKET"),
   };
+  const customDomain = process.env.SHARE_CUSTOM_DOMAIN?.trim() ?? "";
+  if (customDomain) {
+    const customDomainUrl = new URL(`https://${customDomain}`);
+    if (
+      customDomainUrl.hostname !== customDomain ||
+      customDomainUrl.origin !== `https://${customDomain}`
+    ) {
+      fail("SHARE_CUSTOM_DOMAIN must be a hostname without a scheme or path");
+    }
+  }
 
   if (!/^[0-9a-f-]{36}$/iu.test(cloudflare.d1Id)) {
     fail("CLOUDFLARE_D1_ID must be a D1 database UUID");
@@ -112,6 +125,7 @@ function readConfig({ production: requireProduction }) {
     publicApiUrl,
     defaultExpirySeconds,
     allowedOrigins,
+    customDomain,
     cloudflare,
   };
 }

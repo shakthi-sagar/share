@@ -9,9 +9,10 @@
     "config:check": "node scripts/config.mjs check",
     "config:sync": "node scripts/config.mjs sync",
     "dev": "pnpm config:sync && pnpm --filter @share/web build && pnpm --parallel --filter @share/api-cloudflare --filter @share/web dev",
-    "deploy": "node scripts/config.mjs sync --production && pnpm build && pnpm --filter @share/api-cloudflare deploy",
+    "deploy:cloudflare": "node scripts/config.mjs sync --production && pnpm build && pnpm --filter @share/api-cloudflare run deploy",
     "format": "biome format --write .",
     "lint": "biome lint .",
+    "smoke:deployment": "node scripts/smoke-deployment.mjs",
     "test": "pnpm -r test"
   },
   "devDependencies": {

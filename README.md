@@ -58,14 +58,21 @@ pnpm build
 ## Deployment
 
 Create the configured D1 database and R2 bucket, put the resulting D1 UUID in `.env`, then set the
-public web and API URLs to the Worker URL. Deploy with:
+public web and API URLs. Set `SHARE_CUSTOM_DOMAIN` when the Worker should own a hostname in a
+Cloudflare-managed zone. Deploy with:
 
 ```sh
-pnpm deploy
+pnpm deploy:cloudflare
 ```
 
 This validates production configuration, builds the web app, applies D1 migrations, uploads static
 assets, and deploys the API in one Worker release.
+
+After deployment, verify the complete storage and authorization path with:
+
+```sh
+pnpm smoke:deployment
+```
 
 ## Security model
 
