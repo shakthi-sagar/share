@@ -24,6 +24,11 @@ High-impact areas include:
 - R2 privacy and object-key construction
 - accidental logging or browser-bundle exposure
 - hosted client integrity
+- local workspace isolation and unintended network transmission
+
+Local workspaces are stored as plaintext metadata and blobs in browser IndexedDB. They are protected
+by the browser profile and operating system, not by the encrypted-share protocol. No workspace data
+should leave the browser until the user explicitly starts publishing a snapshot.
 
 The protocol and current trust boundary are documented in [docs/protocol.md](docs/protocol.md) and
 [docs/architecture.md](docs/architecture.md).

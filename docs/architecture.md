@@ -4,7 +4,10 @@
 
 ```mermaid
 flowchart LR
-  U[User or agent] --> C[Client surface]
+  U[User] --> W[Local web workspace]
+  W --> I[(Browser IndexedDB)]
+  W -->|explicit Share action| C[Encrypted-share client]
+  G[Future CLI or MCP surface] --> C
   C -->|ciphertext + upload token| A[Shared HTTP API]
   C -->|derived read credential| A
   A --> D[(D1 metadata)]
@@ -19,6 +22,25 @@ second protocol.
 The production deployment is one Cloudflare Worker. Static assets are served for application
 routes, while `/v1/*` and `/health` execute the Worker first. The Worker uses D1 for share lifecycle
 metadata and private R2 for encrypted manifests and chunks.
+
+## Local workspace layer
+
+`apps/web/src/workspace` owns editable browser workspaces. A workspace ID is local and independent
+of every published share ID. Metadata and file blobs are stored in IndexedDB; no draft or workspace
+content is sent to the API.
+
+The workspace editor creates, imports, renames, moves, edits, and deletes local entries. When the
+user presses Share, the web app derives relative paths from the entry hierarchy and adapts each file
+blob to the existing `@share/client` input. Each publication is an immutable snapshot. Later local
+edits do not change it, and publishing again creates a new share.
+
+```mermaid
+flowchart LR
+  F[Files, folders, or empty workspace] --> W[Local workspace]
+  W <--> I[(IndexedDB)]
+  W -->|flatten files and paths| C[@share/client]
+  C -->|existing protocol| A[Encrypted-share API]
+```
 
 ## Package responsibilities
 
@@ -77,6 +99,18 @@ It does not depend on Cloudflare APIs.
 - private R2 blob storage
 - configured CORS policy
 - Worker static assets
+
+### Web workspace
+
+`apps/web` owns browser-only workspace concerns:
+
+- workspace and entry models without server fields
+- IndexedDB persistence for metadata and blobs
+- local file organization and text editing
+- image and unsupported-file preview states
+- conversion from the current workspace to `@share/client` source files
+
+The workspace store is not imported by the protocol, client, server, or Worker packages.
 
 ## Create flow
 

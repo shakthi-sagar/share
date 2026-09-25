@@ -74,6 +74,11 @@ Keep encryption and transport logic in `@share/client`. Components own interacti
 Preserve relative paths for nested folders and fetch file ciphertext only when the user selects or
 downloads that file.
 
+Keep editable workspaces browser-only. Store their metadata and blobs through
+`apps/web/src/workspace/store.ts`; do not put file content in localStorage or add workspace concepts
+to the API. Publishing must serialize the current workspace into the existing `@share/client`
+source-file shape.
+
 Follow `docs/design-system.md` and `docs/design-decisions.md`. Reuse semantic tokens and established
 component patterns. Verify keyboard access, visible focus, complete interaction states, readable
 errors, mobile layout, and long filenames.

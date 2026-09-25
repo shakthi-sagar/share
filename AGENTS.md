@@ -44,6 +44,7 @@ Treat these as release blockers:
     decrypted manifests, file paths, or plaintext.
 11. Validate relative paths with `isSafeRelativePath` before encryption or display.
 12. Preserve bounded chunk and manifest reads. Do not buffer an entire arbitrary-size share.
+13. Keep workspace metadata and blobs in browser storage until the user explicitly starts Share.
 
 Changing encryption formats, key derivation labels, nonce construction, authenticated data, or
 manifest fields requires a protocol version and a documented compatibility plan. Existing shares
@@ -57,6 +58,7 @@ must remain readable for their advertised lifetime.
 - `packages/server`: storage ports, authorization, lifecycle, and object-key construction
 - `apps/api-cloudflare`: Hono routes plus D1 and R2 adapters
 - `apps/web`: React upload, unlock, folder tree, preview, and download UI
+- `apps/web/src/workspace`: browser-only workspace model and IndexedDB persistence
 - `scripts`: configuration, deployment support, and remote smoke verification
 
 Dependencies should point inward through those boundaries. UI code must call `@share/client` rather

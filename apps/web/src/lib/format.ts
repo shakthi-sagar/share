@@ -8,20 +8,3 @@ export function formatBytes(bytes: number): string {
   const digits = value >= 10 || exponent === 0 ? 0 : 1;
   return `${value.toFixed(digits)} ${units[exponent]}`;
 }
-
-export function bundleNameFromFiles(files: SelectedFile[]): string {
-  const firstPath = files[0]?.path;
-  if (!firstPath) {
-    return "Encrypted share";
-  }
-  const topLevel = firstPath.split("/").at(0) ?? firstPath;
-  if (files.length > 1 && files.every((file) => file.path.startsWith(`${topLevel}/`))) {
-    return topLevel;
-  }
-  return files.length === 1 ? firstPath : "Shared files";
-}
-
-export interface SelectedFile {
-  file: File;
-  path: string;
-}

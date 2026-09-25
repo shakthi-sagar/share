@@ -16,10 +16,10 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { Header } from "../components/Header";
+import { MarkdownPreview } from "../components/MarkdownPreview";
 import { API_BASE_URL } from "../lib/config";
+import { filePreviewKind } from "../lib/file-kind";
 import { type BundleTreeNode, buildFileTree, directoryPaths } from "../lib/file-tree";
 import { formatBytes } from "../lib/format";
 
@@ -296,7 +296,7 @@ function FilePreview({
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const previewKind = kindFor(file);
+  const previewKind = filePreviewKind(file.path, file.mime);
 
   useEffect(() => {
     let active = true;
@@ -346,25 +346,7 @@ function FilePreview({
     return <div className="content-state error-state">{error}</div>;
   }
   if (previewKind === "markdown" && content !== null) {
-    return (
-      <article className="markdown-body">
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
-          components={{
-            img: ({ alt }) => (
-              <span className="blocked-remote-image">Image blocked: {alt || "remote image"}</span>
-            ),
-            a: ({ href, children }) => (
-              <a href={href} target="_blank" rel="noreferrer">
-                {children}
-              </a>
-            ),
-          }}
-        >
-          {content}
-        </ReactMarkdown>
-      </article>
-    );
+    return <MarkdownPreview content={content} />;
   }
   if (previewKind === "text" && content !== null) {
     return (
@@ -428,20 +410,9 @@ function DownloadButton({
 
 function FileIcon({ file }: { file: ManifestFile }): React.JSX.Element {
   if (file.mime.startsWith("image/")) return <FileImage size={15} />;
-  if (kindFor(file) === "markdown") return <FileText size={15} />;
-  if (kindFor(file) === "text") return <FileCode2 size={15} />;
+  if (filePreviewKind(file.path, file.mime) === "markdown") return <FileText size={15} />;
+  if (filePreviewKind(file.path, file.mime) === "text") return <FileCode2 size={15} />;
   return <File size={15} />;
-}
-
-function kindFor(file: ManifestFile): "markdown" | "text" | "image" | "binary" {
-  if (file.mime === "text/markdown" || /\.mdx?$/iu.test(file.path)) return "markdown";
-  if (file.mime.startsWith("image/") && file.mime !== "image/svg+xml") return "image";
-  if (
-    file.mime.startsWith("text/") ||
-    /\.(?:json|ya?ml|js|jsx|ts|tsx|css|html|xml|sql|sh|py|go|rs|java|c|cpp|h)$/iu.test(file.path)
-  )
-    return "text";
-  return "binary";
 }
 
 function EmptyBundle(): React.JSX.Element {

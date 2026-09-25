@@ -8,6 +8,11 @@ separately derived read credential, and requires that credential before returnin
 
 ## What works
 
+- Local workspaces persisted in browser IndexedDB
+- Create, import, organize, rename, move, and delete nested files and folders
+- Local editing for Markdown, text, JSON, YAML, and source files
+- Markdown and image previews before publishing
+- Immutable encrypted snapshots created only through an explicit Share action
 - File and recursive folder uploads
 - AES-256-GCM chunk encryption in the browser
 - Separate manifest, file, read authorization, upload, and deletion credentials
@@ -78,6 +83,12 @@ pnpm smoke:deployment
 
 The hosted service never receives plaintext, filenames, folder paths, or the master secret. Anyone
 who has the complete share URL can decrypt the share, so the URL must be treated as a secret.
+
+Unpublished workspaces and file blobs stay in IndexedDB in the current browser. The web app contacts
+the share API only when the user explicitly publishes a snapshot.
+
+Local workspaces are not encrypted at rest. Anyone with access to this browser profile or origin
+storage may be able to read them. End-to-end encryption is applied to the published snapshot.
 
 The hosted web application remains part of the trust boundary because it delivers the encryption
 client. Independently built CLI and MCP clients will use the same documented wire protocol.

@@ -127,6 +127,13 @@ The viewer keeps global actions in its fixed header, navigation in the file tree
 artifact in the reading pane. Render unsupported formats as a clear download state. Fetch and
 decrypt file content only when it is needed for preview or download.
 
+### Workspace editor
+
+Keep workspace navigation compact and file-oriented. The header owns the workspace name, local-save
+status, and Share action. The sidebar owns creation, import, and hierarchy. The content pane owns
+entry actions and editing or preview. Clearly distinguish `Saved locally` from publishing, and
+describe Share as creating an immutable encrypted snapshot.
+
 ## Responsive behavior
 
 The primary breakpoint is `760px`.

@@ -1,220 +1,205 @@
-import { type CreatedShare, createEncryptedShare, type ShareProgress } from "@share/client";
-import { Check, FileText, FolderOpen, Plus, ShieldCheck, Trash2, Upload } from "lucide-react";
-import { useRef, useState } from "react";
-import { CopyButton } from "../components/CopyButton";
-import { API_BASE_URL, DEFAULT_EXPIRY_SECONDS, SHARE_BASE_URL } from "../lib/config";
-import { mergeSelected, selectedFromDrop, selectedFromFileList } from "../lib/files";
-import { bundleNameFromFiles, formatBytes, type SelectedFile } from "../lib/format";
-
-type HomeState = "selecting" | "uploading" | "success";
+import { Copy, FilePlus2, FileUp, FolderInput, FolderOpen, Pencil, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { formatBytes } from "../lib/format";
+import {
+  createWorkspace,
+  duplicateWorkspace,
+  importFiles,
+  renameWorkspace,
+  workspaceFiles,
+} from "../workspace/model";
+import { workspaceStore } from "../workspace/store";
+import type { Workspace, WorkspaceImportFile } from "../workspace/types";
 
 export function Home(): React.JSX.Element {
-  const [files, setFiles] = useState<SelectedFile[]>([]);
-  const [bundleName, setBundleName] = useState("Encrypted share");
-  const [expiry, setExpiry] = useState<number | null>(DEFAULT_EXPIRY_SECONDS);
-  const [dragging, setDragging] = useState(false);
-  const [state, setState] = useState<HomeState>("selecting");
-  const [progress, setProgress] = useState<ShareProgress | null>(null);
-  const [result, setResult] = useState<CreatedShare | null>(null);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
 
-  function addFiles(incoming: SelectedFile[]): void {
-    const next = mergeSelected(files, incoming);
-    setFiles(next);
-    if (files.length === 0) {
-      setBundleName(bundleNameFromFiles(next));
-    }
-  }
-
-  async function submit(): Promise<void> {
-    setError(null);
-    setState("uploading");
-    try {
-      const created = await createEncryptedShare({
-        apiBaseUrl: API_BASE_URL,
-        shareBaseUrl: SHARE_BASE_URL,
-        name: bundleName.trim() || "Encrypted share",
-        files: files.map(({ file, path }) => ({
-          path,
-          mime: file.type || "application/octet-stream",
-          size: file.size,
-          stream: () => file.stream(),
-        })),
-        expiresInSeconds: expiry,
-        onProgress: setProgress,
+  useEffect(() => {
+    let active = true;
+    void workspaceStore
+      .list()
+      .then((items) => {
+        if (active) setWorkspaces(items);
+      })
+      .catch((caught: unknown) => {
+        if (active) {
+          setError(caught instanceof Error ? caught.message : "Unable to load local workspaces");
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false);
       });
-      localStorage.setItem(`share:delete:${created.id}`, created.deleteToken);
-      setResult(created);
-      setState("success");
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function openNewWorkspace(workspace: Workspace): Promise<void> {
+    setBusy(true);
+    setError(null);
+    try {
+      await workspaceStore.create(workspace);
+      window.location.assign(`/w/${workspace.id}`);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "The share could not be created");
-      setState("selecting");
+      setBusy(false);
+      setError(caught instanceof Error ? caught.message : "Unable to create workspace");
     }
   }
 
-  function reset(): void {
-    setFiles([]);
-    setBundleName("Encrypted share");
-    setProgress(null);
-    setResult(null);
-    setError(null);
-    setState("selecting");
+  async function createFromFiles(files: FileList, folder: boolean): Promise<void> {
+    const selected: WorkspaceImportFile[] = [...files].map((file) => ({
+      file,
+      path: file.webkitRelativePath || file.name,
+    }));
+    if (selected.length === 0) return;
+    const firstPath = selected[0]?.path ?? "Untitled";
+    const name = folder ? (firstPath.split("/")[0] ?? "Untitled") : selected[0]?.file.name;
+    const workspace = importFiles(createWorkspace(name), selected, null, folder);
+    await openNewWorkspace(workspace);
+  }
+
+  async function refresh(): Promise<void> {
+    setWorkspaces(await workspaceStore.list());
   }
 
   return (
-    <main className="home-shell">
-      <section className="hero-copy">
-        <p className="eyebrow">Open-source encrypted sharing</p>
-        <h1>Share files. Keep the key.</h1>
-        <p>End-to-end encrypted sharing for humans and AI agents.</p>
+    <main className="home-shell workspace-home">
+      <section className="hero-copy workspace-hero">
+        <p className="eyebrow">Local-first encrypted sharing</p>
+        <h1>Build locally. Share a snapshot.</h1>
+        <p>Your workspace stays in this browser until you explicitly encrypt and share it.</p>
       </section>
 
-      {state === "success" && result ? (
-        <SuccessResult result={result} onReset={reset} />
-      ) : (
-        <section className="upload-panel" aria-label="Create encrypted share">
-          {files.length === 0 ? (
-            <section
-              className={`dropzone ${dragging ? "is-dragging" : ""}`}
-              aria-label="Add files or a folder"
-              onDragEnter={(event) => {
-                event.preventDefault();
-                setDragging(true);
-              }}
-              onDragOver={(event) => event.preventDefault()}
-              onDragLeave={(event) => {
-                if (event.currentTarget === event.target) {
-                  setDragging(false);
-                }
-              }}
-              onDrop={async (event) => {
-                event.preventDefault();
-                setDragging(false);
-                addFiles(await selectedFromDrop(event.dataTransfer));
-              }}
-            >
-              <span className="dropzone-icon">
-                <Upload size={22} strokeWidth={1.6} />
-              </span>
-              <strong>Drop files or a folder</strong>
-              <span>or browse from your computer</span>
-              <div className="dropzone-actions">
-                <button
-                  className="button button-primary"
-                  type="button"
-                  onClick={() => fileInput.current?.click()}
-                >
-                  <Plus size={15} /> Browse files
-                </button>
-                <button
-                  className="button button-secondary"
-                  type="button"
-                  onClick={() => folderInput.current?.click()}
-                >
-                  <FolderOpen size={15} /> Browse folder
-                </button>
-              </div>
-              <small>Markdown, code, images, archives and arbitrary files</small>
-            </section>
-          ) : (
-            <div className="bundle-builder">
-              <div className="bundle-heading">
-                <div>
-                  <input
-                    className="bundle-name"
-                    value={bundleName}
-                    onChange={(event) => setBundleName(event.target.value)}
-                    aria-label="Share name"
-                    disabled={state === "uploading"}
-                  />
-                  <p>
-                    {files.length} {files.length === 1 ? "file" : "files"} ·{" "}
-                    {formatBytes(files.reduce((total, selected) => total + selected.file.size, 0))}
-                  </p>
-                </div>
-                <div className="inline-actions">
-                  <button
-                    className="button button-quiet"
-                    type="button"
-                    onClick={() => fileInput.current?.click()}
-                    disabled={state === "uploading"}
-                  >
-                    <Plus size={15} /> Add files
-                  </button>
-                  <button
-                    className="button button-quiet"
-                    type="button"
-                    onClick={() => folderInput.current?.click()}
-                    disabled={state === "uploading"}
-                  >
-                    <FolderOpen size={15} /> Add folder
-                  </button>
-                </div>
-              </div>
+      <section className="workspace-start" aria-labelledby="start-heading">
+        <div className="section-heading">
+          <div>
+            <h2 id="start-heading">Start a workspace</h2>
+            <p>Files are stored locally on this device.</p>
+          </div>
+          <span className="local-badge">Local only</span>
+        </div>
+        <div className="start-actions">
+          <button
+            className="start-action"
+            type="button"
+            disabled={busy}
+            onClick={() => fileInput.current?.click()}
+          >
+            <span className="start-action-icon">
+              <FileUp size={20} />
+            </span>
+            <strong>Upload file</strong>
+            <span>Open one file in a new workspace</span>
+          </button>
+          <button
+            className="start-action"
+            type="button"
+            disabled={busy}
+            onClick={() => folderInput.current?.click()}
+          >
+            <span className="start-action-icon">
+              <FolderInput size={20} />
+            </span>
+            <strong>Upload folder</strong>
+            <span>Keep its nested folder structure</span>
+          </button>
+          <button
+            className="start-action"
+            type="button"
+            disabled={busy}
+            onClick={() => void openNewWorkspace(createWorkspace())}
+          >
+            <span className="start-action-icon">
+              <FilePlus2 size={20} />
+            </span>
+            <strong>Create empty workspace</strong>
+            <span>Start with a blank local canvas</span>
+          </button>
+        </div>
+      </section>
 
-              <ul className="file-list" aria-label="Files in this share">
-                {files.map((selected) => (
-                  <li className="file-row" key={selected.path}>
-                    <FileText size={16} strokeWidth={1.6} aria-hidden="true" />
-                    <span className="file-path">{selected.path}</span>
-                    <span className="file-size">{formatBytes(selected.file.size)}</span>
+      <section className="recent-workspaces" aria-labelledby="recent-heading">
+        <div className="section-heading">
+          <div>
+            <h2 id="recent-heading">Recent workspaces</h2>
+            <p>Stored in IndexedDB in this browser.</p>
+          </div>
+        </div>
+
+        {loading ? <p className="empty-library">Loading local workspaces…</p> : null}
+        {!loading && workspaces.length === 0 ? (
+          <div className="empty-library">
+            <FolderOpen size={20} />
+            <p>No local workspaces yet.</p>
+          </div>
+        ) : null}
+        {workspaces.length > 0 ? (
+          <ul className="workspace-list">
+            {workspaces.map((workspace) => {
+              const files = workspaceFiles(workspace);
+              return (
+                <li key={workspace.id}>
+                  <a className="workspace-list-main" href={`/w/${workspace.id}`}>
+                    <span className="workspace-list-name">{workspace.name}</span>
+                    <span>
+                      {files.length} {files.length === 1 ? "file" : "files"} ·{" "}
+                      {formatBytes(files.reduce((total, { entry }) => total + entry.blob.size, 0))}
+                    </span>
+                    <span>Edited {formatRelativeTime(workspace.updatedAt)}</span>
+                  </a>
+                  <div className="workspace-list-actions">
                     <button
                       className="icon-button"
                       type="button"
-                      aria-label={`Remove ${selected.path}`}
-                      disabled={state === "uploading"}
-                      onClick={() => setFiles(files.filter((file) => file.path !== selected.path))}
+                      aria-label={`Rename ${workspace.name}`}
+                      title="Rename"
+                      onClick={async () => {
+                        const name = window.prompt("Workspace name", workspace.name);
+                        if (!name?.trim()) return;
+                        await workspaceStore.update(renameWorkspace(workspace, name));
+                        await refresh();
+                      }}
+                    >
+                      <Pencil size={15} />
+                    </button>
+                    <button
+                      className="icon-button"
+                      type="button"
+                      aria-label={`Duplicate ${workspace.name}`}
+                      title="Duplicate"
+                      onClick={async () => {
+                        await workspaceStore.create(duplicateWorkspace(workspace));
+                        await refresh();
+                      }}
+                    >
+                      <Copy size={15} />
+                    </button>
+                    <button
+                      className="icon-button"
+                      type="button"
+                      aria-label={`Delete ${workspace.name}`}
+                      title="Delete"
+                      onClick={async () => {
+                        if (!window.confirm(`Delete “${workspace.name}” from this browser?`))
+                          return;
+                        await workspaceStore.delete(workspace.id);
+                        await refresh();
+                      }}
                     >
                       <Trash2 size={15} />
                     </button>
-                  </li>
-                ))}
-              </ul>
-
-              {state === "uploading" ? (
-                <UploadStatus progress={progress} />
-              ) : (
-                <div className="bundle-footer">
-                  <label>
-                    <span>Share expiry</span>
-                    <select
-                      value={expiry ?? "never"}
-                      onChange={(event) =>
-                        setExpiry(
-                          event.target.value === "never" ? null : Number(event.target.value),
-                        )
-                      }
-                    >
-                      <option value={3600}>1 hour</option>
-                      <option value={86400}>1 day</option>
-                      <option value={604800}>7 days</option>
-                      <option value={2592000}>30 days</option>
-                      <option value="never">Never</option>
-                    </select>
-                  </label>
-                  <div className="submit-area">
-                    <button className="button button-primary" type="button" onClick={submit}>
-                      Encrypt &amp; share
-                    </button>
-                    <small>Encryption happens locally before upload.</small>
                   </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          <div className="trust-row">
-            <span>
-              <ShieldCheck size={14} /> Encrypted on this device
-            </span>
-            <span>
-              <Check size={14} /> Encryption keys never reach the API
-            </span>
-          </div>
-        </section>
-      )}
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
+      </section>
 
       {error ? (
         <p className="inline-error" role="alert">
@@ -226,9 +211,8 @@ export function Home(): React.JSX.Element {
         ref={fileInput}
         className="visually-hidden"
         type="file"
-        multiple
         onChange={(event) => {
-          if (event.target.files) addFiles(selectedFromFileList(event.target.files));
+          if (event.target.files) void createFromFiles(event.target.files, false);
           event.target.value = "";
         }}
       />
@@ -239,7 +223,7 @@ export function Home(): React.JSX.Element {
         multiple
         webkitdirectory=""
         onChange={(event) => {
-          if (event.target.files) addFiles(selectedFromFileList(event.target.files));
+          if (event.target.files) void createFromFiles(event.target.files, true);
           event.target.value = "";
         }}
       />
@@ -247,77 +231,15 @@ export function Home(): React.JSX.Element {
   );
 }
 
-function UploadStatus({ progress }: { progress: ShareProgress | null }): React.JSX.Element {
-  const stages = [
-    "Preparing bundle",
-    "Encrypting locally",
-    "Uploading ciphertext",
-    "Creating share",
-  ];
-  const activeIndex =
-    progress?.stage === "creating"
-      ? 0
-      : progress?.stage === "encrypting"
-        ? 1
-        : progress?.stage === "uploading"
-          ? 2
-          : 3;
-  return (
-    <div className="upload-status" role="status" aria-live="polite">
-      <div className="progress-track">
-        <span style={{ width: `${Math.max(8, (activeIndex / 3) * 100)}%` }} />
-      </div>
-      <ol>
-        {stages.map((stage, index) => (
-          <li className={index <= activeIndex ? "is-active" : ""} key={stage}>
-            <span className="status-marker">
-              {index < activeIndex ? "✓" : index === activeIndex ? "●" : "○"}
-            </span>
-            {stage}
-          </li>
-        ))}
-      </ol>
-    </div>
-  );
-}
-
-function SuccessResult({
-  result,
-  onReset,
-}: {
-  result: CreatedShare;
-  onReset: () => void;
-}): React.JSX.Element {
-  return (
-    <section className="success-panel" aria-labelledby="success-heading">
-      <div className="success-heading">
-        <span className="success-mark">
-          <Check size={18} />
-        </span>
-        <div>
-          <h2 id="success-heading">Encrypted and ready to share</h2>
-          <p>Anyone with the full link can decrypt this bundle.</p>
-        </div>
-      </div>
-      <div className="copy-field primary-copy-field">
-        <code>{result.urlWithKey}</code>
-        <CopyButton value={result.urlWithKey} />
-      </div>
-      <p className="security-note">
-        The master secret was generated on this device. Only a separate derived access credential
-        was sent to the API.
-      </p>
-      <div className="result-actions">
-        <a className="button button-primary" href={result.urlWithKey}>
-          Open share
-        </a>
-        <CopyButton value={result.url} label="Copy link without key" />
-        <CopyButton value={result.key} label="Copy key" />
-        <button className="button button-quiet" type="button" onClick={onReset}>
-          Create another
-        </button>
-      </div>
-      <p className="loss-warning">Save the full link or key. It cannot be recovered.</p>
-    </section>
-  );
+function formatRelativeTime(timestamp: number): string {
+  const difference = Date.now() - timestamp;
+  const minutes = Math.floor(difference / 60_000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return "yesterday";
+  if (days < 7) return `${days}d ago`;
+  return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(timestamp);
 }
