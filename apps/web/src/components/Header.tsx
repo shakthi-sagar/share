@@ -1,16 +1,28 @@
+import { BookOpen, Server } from "lucide-react";
+import { docsHref } from "../lib/docs";
+import { repositoryUrl } from "../lib/links";
+import { AppLink } from "./AppLink";
+import { GithubMark } from "./GithubMark";
+
 export function Header(): React.JSX.Element {
   return (
     <header className="site-header">
-      <a className="wordmark" href="/" aria-label="Share home">
+      <AppLink className="wordmark" href="/" aria-label="Share home">
         <span className="wordmark-mark" aria-hidden="true">
           /
         </span>
         share
-      </a>
-      <nav className="site-nav" aria-label="Primary navigation">
-        <a href="https://github.com/shakthi-sagar/share#readme">Docs</a>
-        <a href="https://github.com/shakthi-sagar/share#deployment">Self-host</a>
-        <a href="https://github.com/shakthi-sagar/share">GitHub</a>
+      </AppLink>
+      <nav className="site-nav" aria-label="Primary">
+        <AppLink href={docsHref("")}>
+          <BookOpen size={14} aria-hidden="true" /> Docs
+        </AppLink>
+        <AppLink href={docsHref("self-host")}>
+          <Server size={14} aria-hidden="true" /> Self-host
+        </AppLink>
+        <a href={repositoryUrl} target="_blank" rel="noreferrer">
+          <GithubMark /> GitHub
+        </a>
       </nav>
     </header>
   );

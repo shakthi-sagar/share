@@ -17,11 +17,14 @@ separately derived read credential, and requires that credential before returnin
 - AES-256-GCM chunk encryption in the browser
 - Separate manifest, file, read authorization, upload, and deletion credentials
 - Expiring shares
+- Revoking a published share from the browser that published it
+- Hourly sweep that deletes expired shares from storage
 - Lazy file download and local decryption
 - Markdown, text, code, and image previews
 - Collapsible nested folder tree
 - One Cloudflare Worker serving the React app and API
 - D1 metadata and private R2 ciphertext storage
+- In-app documentation at `/docs`, including a self-hosting guide
 
 ## Requirements
 
@@ -96,6 +99,9 @@ client. Independently built CLI and MCP clients will use the same documented wir
 See [the protocol documentation](docs/protocol.md) for the key schedule and ciphertext format.
 
 ## Project documentation
+
+The deployed web app serves this project's user documentation at `/docs`, including
+[self-hosting](docs/deployment.md). The files below cover contributors and agents.
 
 - [Agent operating guide](AGENTS.md)
 - [Architecture](docs/architecture.md)

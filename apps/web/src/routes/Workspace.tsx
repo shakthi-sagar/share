@@ -43,6 +43,8 @@ import { workspaceStore } from "../workspace/store";
 import type { Workspace, WorkspaceEntry, WorkspaceImportFile } from "../workspace/types";
 
 type SaveState = "saved" | "saving" | "error";
+const emptyWorkspace: Workspace = { id: "", name: "", createdAt: 0, updatedAt: 0, entries: [] };
+
 type WorkspaceDialog =
   | { kind: "new-file" | "new-folder" }
   | { kind: "rename" | "delete"; entry: WorkspaceEntry }
@@ -61,6 +63,39 @@ export function WorkspaceEditor({ id }: { id: string }): React.JSX.Element {
   const fileInput = useRef<HTMLInputElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
   const saveVersion = useRef(0);
+
+  const treeDrag = useTreeDrag({
+    workspace: workspace ?? emptyWorkspace,
+    expanded,
+    onToggle: (id: string) =>
+      setExpanded((current) => {
+        const next = new Set(current);
+        if (next.has(id)) {
+          next.delete(id);
+        } else {
+          next.add(id);
+        }
+        return next;
+      }),
+    onMove: (entryId: string, parentId: string | null) => {
+      if (!workspace) return;
+      const entry = workspace.entries.find((item) => item.id === entryId);
+      if (!entry) return;
+      try {
+        apply(moveEntry(workspace, entryId, parentId));
+        setMessage(
+          parentId === null
+            ? `Moved ${entry.name} to the workspace root`
+            : `Moved ${entry.name} into ${pathForEntry(workspace, parentId)}`,
+        );
+        if (parentId && !expanded.has(parentId)) {
+          setExpanded((current) => new Set(current).add(parentId));
+        }
+      } catch (caught) {
+        setMessage(caught instanceof Error ? caught.message : "Unable to move this entry");
+      }
+    },
+  });
 
   useEffect(() => {
     let active = true;
@@ -188,32 +223,39 @@ export function WorkspaceEditor({ id }: { id: string }): React.JSX.Element {
           name={workspace.name}
           onCommit={(name) => apply(renameWorkspace(workspace, name))}
         />
-        <span className={`save-state is-${saveState}`} aria-live="polite">
-          {saveState === "saving"
-            ? "Local draft · Saving…"
-            : saveState === "error"
-              ? "Local save failed"
-              : "Local draft · Saved"}
-        </span>
-        <button
-          className="button button-secondary workspace-files-button"
-          type="button"
-          onClick={() => setDrawerOpen(true)}
-        >
-          <Menu size={16} /> Files
-        </button>
-        <button
-          className="button button-primary"
-          type="button"
-          disabled={files.length === 0}
-          onClick={() => setShareOpen(true)}
-        >
-          <Share2 size={15} /> Share snapshot
-        </button>
+        <div className="workspace-header-actions">
+          <button
+            className="button button-secondary workspace-files-button"
+            type="button"
+            onClick={() => setDrawerOpen(true)}
+          >
+            <Menu size={16} /> Files
+          </button>
+          <span className={`save-state is-${saveState}`} aria-live="polite">
+            {saveState === "saving"
+              ? "Local draft · Saving…"
+              : saveState === "error"
+                ? "Local save failed"
+                : "Local draft · Saved"}
+          </span>
+          <button
+            className="button button-primary"
+            type="button"
+            disabled={files.length === 0}
+            onClick={() => setShareOpen(true)}
+          >
+            <Share2 size={15} /> Share snapshot
+          </button>
+        </div>
       </header>
 
       <div className="workspace-body">
-        <aside className={`workspace-sidebar ${drawerOpen ? "is-open" : ""}`}>
+        <aside
+          className={`workspace-sidebar ${drawerOpen ? "is-open" : ""}${
+            treeDrag.isRootTarget ? " is-drop-root" : ""
+          }`}
+          {...treeDrag.sidebarProps}
+        >
           <div className="workspace-sidebar-heading">
             <span>Files</span>
             <button
@@ -227,22 +269,23 @@ export function WorkspaceEditor({ id }: { id: string }): React.JSX.Element {
           </div>
           <div className="workspace-tree-actions">
             <button type="button" onClick={() => setDialog({ kind: "new-file" })}>
-              <FilePlus2 size={14} /> File
+              <FilePlus2 size={14} /> New file
             </button>
             <button type="button" onClick={() => setDialog({ kind: "new-folder" })}>
-              <FolderPlus size={14} /> Folder
+              <FolderPlus size={14} /> New folder
             </button>
             <button type="button" onClick={() => fileInput.current?.click()}>
-              <Upload size={14} /> Import
+              <Upload size={14} /> Add files
             </button>
             <button type="button" onClick={() => folderInput.current?.click()}>
-              <FolderUp size={14} /> Folder
+              <FolderUp size={14} /> Add folder
             </button>
           </div>
           <WorkspaceTree
             workspace={workspace}
             selectedId={selectedId}
             expanded={expanded}
+            drag={treeDrag}
             onSelect={(entry) => {
               setSelectedId(entry.id);
               setDrawerOpen(false);
@@ -388,16 +431,163 @@ export function WorkspaceEditor({ id }: { id: string }): React.JSX.Element {
   );
 }
 
+type TreeDrag = {
+  draggingId: string | null;
+  /** `undefined` when no destination is hovered, `null` for the workspace root. */
+  dropTargetId: string | null | undefined;
+  isRootTarget: boolean;
+  sidebarProps: {
+    onDragOver: (event: React.DragEvent<HTMLElement>) => void;
+    onDrop: (event: React.DragEvent<HTMLElement>) => void;
+    onDragLeave: (event: React.DragEvent<HTMLElement>) => void;
+  };
+  rowProps: (entry: WorkspaceEntry) => {
+    draggable: true;
+    "data-entry-id": string;
+    "data-entry-folder"?: "true";
+    onDragStart: (event: React.DragEvent<HTMLButtonElement>) => void;
+    onDragEnd: () => void;
+  };
+  /** A click that lands just after a drop belongs to the drag, not to the row. */
+  ignoreClick: () => boolean;
+};
+
+/**
+ * Drag to move an entry into another folder, or onto the empty space around the tree to bring it back
+ * to the workspace root. The root zone is always present, so nothing is inserted while dragging and
+ * the list cannot shift under the pointer.
+ */
+function useTreeDrag({
+  workspace,
+  expanded,
+  onToggle,
+  onMove,
+}: {
+  workspace: Workspace;
+  expanded: Set<string>;
+  onToggle: (id: string) => void;
+  onMove: (entryId: string, parentId: string | null) => void;
+}): TreeDrag {
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  /**
+   * Re-rendering the dragged row during `dragstart` makes the browser abort the drag, so the id is
+   * held in a ref and the visual state only starts on the first `dragover`.
+   */
+  const draggedEntryId = useRef<string | null>(null);
+  const dragStarted = useRef(false);
+  /** `undefined` means no target, `null` is the workspace root, a string is a folder id. */
+  const [dropTargetId, setDropTargetId] = useState<string | null | undefined>(undefined);
+  const lastDropAt = useRef(0);
+  const toggleRef = useRef(onToggle);
+  toggleRef.current = onToggle;
+
+  const allowedTargets = useMemo(
+    () => new Set(folderOptions(workspace, draggingId ?? undefined).map((option) => option.id)),
+    [workspace, draggingId],
+  );
+
+  // Hovering a collapsed folder opens it, so a deep destination is reachable by drag alone.
+  useEffect(() => {
+    if (dropTargetId === undefined || dropTargetId === null || expanded.has(dropTargetId)) {
+      return;
+    }
+    const timer = window.setTimeout(() => toggleRef.current(dropTargetId), 600);
+    return () => window.clearTimeout(timer);
+  }, [dropTargetId, expanded]);
+
+  function endDrag(): void {
+    draggedEntryId.current = null;
+    dragStarted.current = false;
+    setDraggingId(null);
+    setDropTargetId(undefined);
+  }
+
+  function resolveTarget(event: React.DragEvent<HTMLElement>): { parentId: string | null } | null {
+    const element = event.target as HTMLElement | null;
+    if (!element?.closest) return null;
+    const row = element.closest<HTMLElement>("[data-entry-id]");
+    if (row) {
+      return row.dataset.entryFolder === "true" && row.dataset.entryId
+        ? { parentId: row.dataset.entryId }
+        : null;
+    }
+    // Empty space in the sidebar, including the area below the tree, means the workspace root.
+    if (element.closest(".workspace-tree")) {
+      return { parentId: null };
+    }
+    return null;
+  }
+
+  function handleDragOver(event: React.DragEvent<HTMLElement>): void {
+    const entryId = draggedEntryId.current;
+    if (!entryId) return;
+    if (!dragStarted.current) {
+      dragStarted.current = true;
+      setDraggingId(entryId);
+    }
+    const target = resolveTarget(event);
+    if (!target || !allowedTargets.has(target.parentId)) {
+      // Never leave a stale highlight behind when the pointer passes over something invalid.
+      setDropTargetId(undefined);
+      return;
+    }
+    // Preventing the default is what marks the destination as a valid drop target.
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    setDropTargetId(target.parentId);
+  }
+
+  function handleDrop(event: React.DragEvent<HTMLElement>): void {
+    const entryId = draggedEntryId.current;
+    if (!entryId) return;
+    const target = resolveTarget(event);
+    lastDropAt.current = Date.now();
+    event.preventDefault();
+    endDrag();
+    if (!target || !allowedTargets.has(target.parentId)) return;
+    const entry = workspace.entries.find((item) => item.id === entryId);
+    if (!entry || entry.parentId === target.parentId) return;
+    onMove(entryId, target.parentId);
+  }
+
+  function handleDragLeave(event: React.DragEvent<HTMLElement>): void {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+      setDropTargetId(undefined);
+    }
+  }
+
+  return {
+    draggingId,
+    dropTargetId,
+    isRootTarget: draggingId !== null && dropTargetId === null,
+    sidebarProps: { onDragOver: handleDragOver, onDrop: handleDrop, onDragLeave: handleDragLeave },
+    rowProps: (entry) => ({
+      draggable: true,
+      "data-entry-id": entry.id,
+      ...(entry.type === "folder" ? { "data-entry-folder": "true" as const } : {}),
+      onDragStart: (event) => {
+        draggedEntryId.current = entry.id;
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", entry.id);
+      },
+      onDragEnd: endDrag,
+    }),
+    ignoreClick: () => Date.now() - lastDropAt.current < 250,
+  };
+}
+
 function WorkspaceTree({
   workspace,
   selectedId,
   expanded,
+  drag,
   onSelect,
   onToggle,
 }: {
   workspace: Workspace;
   selectedId: string | null;
   expanded: Set<string>;
+  drag: TreeDrag;
   onSelect: (entry: WorkspaceEntry) => void;
   onToggle: (id: string) => void;
 }): React.JSX.Element {
@@ -412,32 +602,47 @@ function WorkspaceTree({
         depth={0}
         selectedId={selectedId}
         expanded={expanded}
+        draggingId={drag.draggingId}
+        dropTargetId={drag.dropTargetId}
         onSelect={onSelect}
         onToggle={onToggle}
+        rowProps={drag.rowProps}
+        ignoreClick={drag.ignoreClick}
       />
     </div>
   );
 }
+
+const TREE_BASE_INDENT_PX = 9;
+const TREE_LEVEL_INDENT_PX = 28;
 
 function WorkspaceTreeNodes({
   nodes,
   depth,
   selectedId,
   expanded,
+  draggingId,
+  dropTargetId,
   onSelect,
   onToggle,
+  rowProps,
+  ignoreClick,
 }: {
   nodes: WorkspaceTreeNode[];
   depth: number;
   selectedId: string | null;
   expanded: Set<string>;
+  draggingId: string | null;
+  dropTargetId: string | null | undefined;
   onSelect: (entry: WorkspaceEntry) => void;
   onToggle: (id: string) => void;
+  rowProps: TreeDrag["rowProps"];
+  ignoreClick: () => boolean;
 }): React.JSX.Element {
   return (
     <div role={depth === 0 ? "presentation" : "group"}>
       {nodes.map(({ entry, children }) => {
-        const paddingInlineStart = 9 + depth * 16;
+        const paddingInlineStart = TREE_BASE_INDENT_PX + depth * TREE_LEVEL_INDENT_PX;
         if (entry.type === "folder") {
           const isExpanded = expanded.has(entry.id);
           return (
@@ -446,12 +651,16 @@ function WorkspaceTreeNodes({
                 className={`workspace-tree-folder ${selectedId === entry.id ? "is-selected" : ""}`}
               >
                 <button
-                  className="tree-row tree-folder"
+                  className={`tree-row tree-folder${draggingId === entry.id ? " is-dragging" : ""}${
+                    dropTargetId === entry.id ? " is-drop-target" : ""
+                  }`}
                   role="treeitem"
                   aria-expanded={isExpanded}
                   aria-selected={selectedId === entry.id}
                   type="button"
+                  {...rowProps(entry)}
                   onClick={() => {
+                    if (ignoreClick()) return;
                     onSelect(entry);
                     onToggle(entry.id);
                   }}
@@ -471,8 +680,12 @@ function WorkspaceTreeNodes({
                   depth={depth + 1}
                   selectedId={selectedId}
                   expanded={expanded}
+                  draggingId={draggingId}
+                  dropTargetId={dropTargetId}
                   onSelect={onSelect}
                   onToggle={onToggle}
+                  rowProps={rowProps}
+                  ignoreClick={ignoreClick}
                 />
               ) : null}
             </div>
@@ -480,15 +693,22 @@ function WorkspaceTreeNodes({
         }
         return (
           <button
-            className={`tree-row tree-file ${selectedId === entry.id ? "is-selected" : ""}`}
+            className={`tree-row tree-file ${selectedId === entry.id ? "is-selected" : ""}${
+              draggingId === entry.id ? " is-dragging" : ""
+            }`}
             role="treeitem"
             aria-selected={selectedId === entry.id}
             type="button"
             key={entry.id}
-            onClick={() => onSelect(entry)}
+            {...rowProps(entry)}
+            onClick={() => {
+              if (ignoreClick()) return;
+              onSelect(entry);
+            }}
             title={entry.name}
-            style={{ paddingInlineStart: paddingInlineStart + 21 }}
+            style={{ paddingInlineStart }}
           >
+            <span className="tree-chevron" aria-hidden="true" />
             <WorkspaceFileIcon entry={entry} />
             <span className="tree-path">{entry.name}</span>
           </button>

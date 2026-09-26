@@ -22,6 +22,8 @@ export interface MetadataStore {
   find(id: string): Promise<ShareRecord | null>;
   complete(id: string, completion: CompleteShareRequest, completedAt: string): Promise<boolean>;
   remove(id: string): Promise<boolean>;
+  /** Lists ids whose expiry is at or before `expiredAt`, oldest first. Bounded by `limit`. */
+  listExpired(expiredAt: string, limit: number): Promise<string[]>;
 }
 
 export interface StoredBlob {

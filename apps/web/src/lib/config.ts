@@ -14,7 +14,7 @@ function required(name: string, value: string | undefined): string {
 
 function parseExpiry(value: string | undefined): number {
   const parsed = Number(value);
-  if (![3600, 86400, 604800, 2592000].includes(parsed)) {
+  if (![3600, 86400, 259200, 604800].includes(parsed)) {
     throw new Error("SHARE_PUBLIC_DEFAULT_EXPIRY_SECONDS is invalid");
   }
   return parsed;

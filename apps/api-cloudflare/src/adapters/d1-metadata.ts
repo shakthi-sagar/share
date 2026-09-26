@@ -81,6 +81,19 @@ export class D1MetadataStore implements MetadataStore {
     const result = await this.database.prepare("DELETE FROM shares WHERE id = ?").bind(id).run();
     return result.meta.changes === 1;
   }
+
+  async listExpired(expiredAt: string, limit: number): Promise<string[]> {
+    const result = await this.database
+      .prepare(
+        `SELECT id FROM shares
+         WHERE expires_at IS NOT NULL AND expires_at <= ?
+         ORDER BY expires_at ASC
+         LIMIT ?`,
+      )
+      .bind(expiredAt, limit)
+      .all<{ id: string }>();
+    return result.results.map((row) => row.id);
+  }
 }
 
 function mapShare(row: ShareRow): ShareRecord {

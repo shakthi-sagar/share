@@ -3,6 +3,7 @@ import { AlertTriangle, Check, ChevronRight, File, LockKeyhole, X } from "lucide
 import { useEffect, useState } from "react";
 import { API_BASE_URL, DEFAULT_EXPIRY_SECONDS, SHARE_BASE_URL } from "../lib/config";
 import { formatBytes } from "../lib/format";
+import { rememberPublishedShare } from "../lib/published-shares";
 import { workspaceFiles } from "../workspace/model";
 import type { Workspace } from "../workspace/types";
 import { CopyButton } from "./CopyButton";
@@ -50,7 +51,11 @@ export function SharePublisher({
         expiresInSeconds: expiry,
         onProgress: setProgress,
       });
-      localStorage.setItem(`share:delete:${created.id}`, created.deleteToken);
+      rememberPublishedShare({
+        id: created.id,
+        deleteToken: created.deleteToken,
+        expiresAt: created.expiresAt,
+      });
       setResult(created);
       setState("success");
     } catch (caught) {
@@ -141,8 +146,8 @@ export function SharePublisher({
               >
                 <option value={3600}>In 1 hour</option>
                 <option value={86400}>In 1 day</option>
+                <option value={259200}>In 3 days</option>
                 <option value={604800}>In 7 days</option>
-                <option value={2592000}>In 30 days</option>
                 <option value="never">Never</option>
               </select>
             </label>
@@ -322,6 +327,10 @@ function PublishSuccess({
       </details>
 
       <p className="loss-warning">Save the full link or key now. The key cannot be recovered.</p>
+      <p className="publish-revoke-note">
+        Published shares are listed on the home page, where you can revoke this snapshot before it
+        expires.
+      </p>
     </div>
   );
 }

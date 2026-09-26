@@ -78,6 +78,7 @@ Owns surface-independent workflows:
 - delete a share
 
 Browser, CLI, and MCP surfaces should adapt their files and progress reporting to these functions.
+Deletion and revocation are also part of this layer, so every surface can end a share the same way.
 
 ### `@share/server`
 
@@ -85,6 +86,7 @@ Owns application rules behind storage ports:
 
 - share creation and lifecycle
 - upload, read, and delete authorization
+- share deletion and the expired-share sweep
 - secret hashing and constant-time comparison
 - deterministic private object-key construction
 
@@ -156,7 +158,8 @@ ciphertext. It does not give the server decryption ability.
 
 D1 stores opaque identifiers, lifecycle state, protocol version, hashed authorization material,
 counts, byte totals, creation/completion timestamps, and optional expiry. It does not store names or
-paths.
+paths. An hourly cron sweep deletes the objects and the row of every share whose expiry has passed,
+which is what bounds storage growth.
 
 ### R2
 

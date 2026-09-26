@@ -8,12 +8,12 @@ import {
   chunkObjectKey,
   completeShare,
   createShare,
+  deleteShare,
   manifestObjectKey,
-  requireDeleteAuthorization,
+  purgeExpiredShares,
   requireReadAuthorization,
   requireUploadAuthorization,
   ServiceError,
-  sharePrefix,
 } from "@share/server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -116,17 +116,38 @@ app.get("/v1/shares/:id/objects/:objectId/chunks/:index", async (context) => {
 
 app.delete("/v1/shares/:id", async (context) => {
   const shareId = context.req.param("id");
-  const metadata = new D1MetadataStore(context.env.DB);
-  await requireDeleteAuthorization(metadata, shareId, authorization(context.req.raw, "Delete"));
-  await new R2BlobStore(context.env.BLOBS).removePrefix(sharePrefix(shareId));
-  await metadata.remove(shareId);
+  await deleteShare(
+    new D1MetadataStore(context.env.DB),
+    new R2BlobStore(context.env.BLOBS),
+    shareId,
+    authorization(context.req.raw, "Delete"),
+  );
   return context.body(null, 204);
 });
+
+/**
+ * Cron target for the expiry sweep. Platform invocations reach the Worker directly, so the sweep has
+ * no public route and cannot be triggered by a request. It logs counts only: share ids,
+ * credentials, and object keys stay out of the logs.
+ */
+async function runExpirySweep(env: Bindings["Bindings"]): Promise<void> {
+  const started = Date.now();
+  const result = await purgeExpiredShares(new D1MetadataStore(env.DB), new R2BlobStore(env.BLOBS));
+  console.log(
+    JSON.stringify({
+      message: "Expired share sweep completed",
+      scanned: result.scanned,
+      removed: result.removed,
+      failed: result.failed,
+      truncated: result.truncated,
+      durationMs: Date.now() - started,
+    }),
+  );
+}
 
 app.notFound((context) =>
   context.json({ error: { code: "NOT_FOUND", message: "Not found" } }, 404),
 );
-
 app.onError((error, context) => {
   if (error instanceof ServiceError) {
     return context.json(
@@ -201,4 +222,7 @@ function blobResponse(
   });
 }
 
-export default app;
+export default {
+  fetch: (request, env, ctx) => app.fetch(request, env, ctx),
+  scheduled: (_controller, env) => runExpirySweep(env),
+} satisfies ExportedHandler<Bindings["Bindings"]>;

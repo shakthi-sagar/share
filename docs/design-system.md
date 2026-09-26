@@ -40,7 +40,7 @@ Use semantic variables instead of raw color values in component rules.
 | `--text-on-primary` | Text or icons on the primary color |
 | `--border`, `--border-strong` | Default and emphasized boundaries |
 | `--primary`, `--primary-hover`, `--primary-tint` | Primary actions, focus, and selected items |
-| `--accent`, `--accent-tint` | Functional progress and active-location indicators only |
+| `--accent`, `--accent-tint` | Functional progress, drag-active state, and the publish secrecy callout only |
 | `--danger`, `--success` | Error and success meaning |
 | `--overlay`, `--tap-highlight` | Transient interaction layers |
 
@@ -57,6 +57,8 @@ component as the first reference. Add a new size only when a distinct recurring 
 
 - Use sentence case for headings, labels, and buttons.
 - Start action labels with a verb: `Add files`, `Copy link`, `Download all`.
+- Selection is shown with `--primary-tint` plus the primary text color. Do not mark the selected row
+  with `--accent`; that token is reserved for progress and transient active states.
 - Keep status and help text factual and brief.
 - Never imply that the server can read encrypted content or that a share is safe after its full URL
   has been exposed.
@@ -116,13 +118,39 @@ after recoverable errors.
 
 Use monospaced type for paths and sizes. Preserve full relative paths in data, truncate visually,
 and expose the complete value through the accessible name or title when needed. Folder rows expand;
-file rows select. Selected, hovered, and focused states must remain distinguishable.
+file rows select. File rows carry an empty chevron slot so their icons sit in the same column as
+folder icons; never fake that indent with a magic padding number. Selected, hovered, and focused
+states must remain distinguishable.
+
+Siblings are name-sorted, so the tree has no manual order. Dragging moves an entry to another
+folder, never to a position between siblings:
+
+- Valid drop targets are folder rows and the empty tree area below the last row, which means the
+  workspace root: the tree fills the sidebar like an explorer, so empty space is always present.
+  A file row is not a target, and a folder cannot target itself or one of its own descendants.
+  Drive that list from `folderOptions(workspace, draggedId)` so a target and the model never disagree.
+- Never insert or remove a row, strip, or label to create a drop target while dragging. It shifts
+  the list under the pointer and causes mis-drops; an always-present zone is the only safe target.
+- Mark the dragged row as dragged, the hovered valid target as a drop target, and the root zone as
+  hovered. Keep the drop target neutral; `--accent` is not a drop color.
+- Hovering a collapsed folder for about 600ms expands it, and a completed move expands the
+  destination, so the result is visible without another click.
+- Ignore a click that lands within a few hundred milliseconds of a drop so a move never also
+  toggles a folder or closes the drawer.
+- Report the result in the editor status region, including the model error when a name would collide.
+- Drag is pointer-only. The entry toolbar's `Move to` control stays the keyboard path to the same
+  destinations and must keep working.
 
 ### Status and feedback
 
 Show progress near the action that started it. State what is happening in user terms, such as
 `Encrypting files` or `Uploading encrypted chunks`. Errors should say what failed and what the user
 can do next. Success state must keep the share link and its secrecy requirement together.
+
+### Long-form reading
+
+Markdown in a share and Markdown in the documentation share the same typography tokens and reading
+measure. Reuse `.markdown-body` for structure and add only page-specific layout rules.
 
 ### Artifact viewer
 
@@ -133,10 +161,32 @@ decrypt file content only when it is needed for preview or download.
 ### Workspace editor
 
 Keep workspace navigation compact and file-oriented. The header owns the workspace name, explicit
-`Local draft` save status, and `Share snapshot` action. The sidebar owns labeled creation and import
-actions plus hierarchy. The content pane owns entry actions and editing or preview. Do not use
-browser prompts or confirms for create, rename, or delete; use the shared product dialog and keep
-validation errors in that dialog.
+`Local draft` save status, and `Share snapshot` action, with the right-hand controls grouped in one
+end-aligned cluster so the status stays beside the primary action. The sidebar owns labeled
+creation and import actions plus hierarchy. The content pane owns entry actions and editing or
+preview. Do not use browser prompts or confirms for create, rename, or delete; use the shared product
+dialog and keep validation errors in that dialog.
+
+Two actions in the same group must never share a label. Creation and import read as a pair:
+`New file` / `New folder` for an empty entry and `Add files` / `Add folder` for one that comes from
+disk, using the same verb across the sidebar and the content pane.
+
+### Published shares
+
+Publishing records the share id and its delete token in browser storage so the publisher can revoke
+the share before it expires. The home page lists those shares as a compact table: monospaced id,
+formatted expiry (`Never`, a date, or `Expired`), and one `Revoke` action. The section appears only
+when this browser has published shares, and it is not a list of every share on the service.
+
+- Keep the revoke action visible rather than hover-only. It is the only way to end a live share.
+- Revoking requires the shared danger dialog, names the share id, and says the deletion cannot be
+  undone.
+- Treat a not-found response as success and forget the local record: an expired and swept share, or
+  one deleted in another tab, is already gone.
+- Keep the local record when a revoke fails for any other reason so the action can be retried.
+- Refresh the list on the browser `storage` event so another tab's publish or revoke is reflected.
+- The delete token stays in browser storage. Say so where a share is published, and never display,
+  copy, or log it.
 
 ### Publishing flow
 
@@ -145,6 +195,25 @@ file count, total size, bounded file list, expiry, and the immutable/local disti
 shows the current path plus byte or chunk progress when available. Result makes `Copy full link`
 the dominant action and keeps split link/key controls in an advanced disclosure. Keep the secrecy
 warning adjacent to the full-link action.
+
+### Site shell, documentation, and footer
+
+The site header owns the wordmark and the three primary destinations: `Docs`, `Self-host`, and the
+GitHub repository. Each keeps a text label with a small monochrome icon, and external destinations
+open in a new tab. Do not hide navigation behind a menu; every destination stays reachable at the
+narrow breakpoint.
+
+Internal destinations route in the app through `AppLink`: a modified click, a non-primary button, or
+an external href keeps the browser default, and every in-app navigation updates the URL, restores
+the matching scroll position, and honors back and forward.
+
+The documentation route at `/docs` uses a two-column layout: a sticky section nav and a reading
+article on the 720–760px Markdown measure. The current page is marked with `aria-current` and the
+tinted selected state, and every page ends with previous/next navigation. An unknown documentation
+path shows an in-app not-found state that links back to the overview rather than a bare error.
+
+The footer repeats the documentation and project destinations, states the encryption boundary in
+one sentence, and stays quiet: a hairline top border, no dark band, and no marketing sections.
 
 ## Responsive behavior
 

@@ -5,6 +5,7 @@ import {
   createWorkspace,
   deleteEntry,
   duplicateWorkspace,
+  folderOptions,
   importFiles,
   moveEntry,
   pathForEntry,
@@ -61,6 +62,37 @@ describe("workspace model", () => {
     expect(copy.name).toBe("Notes copy");
     expect(copy.entries[0]?.id).not.toBe(original.entries[0]?.id);
     expect(workspaceFiles(copy).map(({ path }) => path)).toEqual(["notes.txt"]);
+  });
+
+  it("offers only valid move destinations, which is what makes a drop target legal", () => {
+    const docs = addFolder(createWorkspace("project", 1), null, "docs");
+    const api = addFolder(docs.workspace, docs.entry.id, "api");
+    const readme = addFile(api.workspace, null, "readme.md");
+
+    expect(folderOptions(readme.workspace, readme.entry.id).map((option) => option.id)).toEqual([
+      null,
+      docs.entry.id,
+      api.entry.id,
+    ]);
+
+    // A folder cannot be dropped into itself or into one of its own descendants.
+    expect(folderOptions(api.workspace, docs.entry.id).map((option) => option.id)).toEqual([null]);
+    expect(() => moveEntry(api.workspace, docs.entry.id, api.entry.id)).toThrow(
+      "A folder cannot be moved inside itself",
+    );
+    expect(() => moveEntry(api.workspace, docs.entry.id, docs.entry.id)).toThrow(
+      "A folder cannot be moved inside itself",
+    );
+  });
+
+  it("refuses a move that would collide with an existing name in the destination", () => {
+    const docs = addFolder(createWorkspace("project", 1), null, "docs");
+    const nested = addFile(docs.workspace, docs.entry.id, "notes.md");
+    const root = addFile(nested.workspace, null, "notes.md");
+
+    expect(() => moveEntry(root.workspace, root.entry.id, docs.entry.id)).toThrow(
+      "An item named “notes.md” already exists here",
+    );
   });
 });
 

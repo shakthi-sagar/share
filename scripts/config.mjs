@@ -70,9 +70,9 @@ function readConfig({ production: requireProduction }) {
   const publicWebUrl = normalizedUrl("SHARE_PUBLIC_WEB_URL");
   const publicApiUrl = normalizedUrl("SHARE_PUBLIC_API_URL");
   const defaultExpirySeconds = integer("SHARE_PUBLIC_DEFAULT_EXPIRY_SECONDS");
-  const allowedExpiryValues = new Set([3600, 86400, 604800, 2592000]);
+  const allowedExpiryValues = new Set([3600, 86400, 259200, 604800]);
   if (!allowedExpiryValues.has(defaultExpirySeconds)) {
-    fail("SHARE_PUBLIC_DEFAULT_EXPIRY_SECONDS must be one of 3600, 86400, 604800, or 2592000");
+    fail("SHARE_PUBLIC_DEFAULT_EXPIRY_SECONDS must be one of 3600, 86400, 259200, or 604800");
   }
 
   const allowedOrigins = (process.env.SHARE_ALLOWED_ORIGINS || publicWebUrl)

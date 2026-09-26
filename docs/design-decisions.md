@@ -32,12 +32,14 @@ Dropbox viewing-link flows.
 | --- | --- | --- |
 | `#f1f1ef` canvas and white task surfaces | Factory.ai and Tailscale | Application background and active work areas |
 | `#181817` primary | Factory.ai | Primary actions, focus, and strongest emphasis |
-| `#d15432` accent | Factory.ai functional orange | Progress and active-location indicators only |
+| `#d15432` accent | Factory.ai functional orange | Progress, drag-active state, and the publish secrecy callout |
 | System sans plus system mono | Factory.ai/SST and performance craft | UI/readable prose plus paths, sizes, keys, and progress |
 | 6px control radius and 8px panel radius | Factory.ai | Compact controls and bounded work areas |
 | 1px borders and shadows only for overlays | Factory.ai/Tailscale | Structure without ornamental elevation |
 | 120ms and 200ms motion | Existing product system | Feedback and state continuity |
 | 720–760px readable Markdown measure | Existing viewer contract | Long-form artifact reading |
+| Sticky section nav plus reading column for `/docs` | Refero documentation-screen patterns | Page navigation beside a single reading measure |
+| Monochrome functional icons in the header and footer | Refero monochrome developer-tool styles | Destination recognition, never decoration |
 
 ## UX commitments
 
@@ -49,5 +51,16 @@ Dropbox viewing-link flows.
   validation errors.
 - Publishing is review → progress → result. The result prioritizes the full secret link and places
   split link/key controls behind an advanced disclosure.
+- A published share stays live until it expires unless the publisher revokes it from the home page.
+  Revocation is local to the browser that published it, because the delete token is issued once and
+  stored there.
 - Recipient viewing keeps artifact identity in the reading pane and navigation in the file tree.
+- Selection uses a neutral tint and text color. Accent orange is not a selection color, in either
+  file tree.
+- Documentation lives in the app at `/docs`, and self-hosting is a documentation page rather than a
+  separate surface. The header links straight to `Docs`, `Self-host`, and the repository.
+- Moving between documentation pages is an in-app navigation, not a document reload, and the URL
+  always reflects the page on screen.
+- The footer repeats those destinations and states the encryption boundary in one sentence. It adds
+  no marketing content.
 - No visual or UX language may imply the API can read plaintext or recover the master secret.

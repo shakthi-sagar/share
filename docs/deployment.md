@@ -25,7 +25,8 @@ For production:
 
 `scripts/config.mjs` rejects placeholder D1 IDs and non-HTTPS public URLs in production. It combines
 the environment values with `apps/api-cloudflare/wrangler.base.jsonc` and writes the ignored
-`wrangler.generated.jsonc`.
+`wrangler.generated.jsonc`. The hourly expired-share sweep is declared in the base file, so it is
+present in every environment without configuration.
 
 ## Provisioning a new environment
 
@@ -62,6 +63,36 @@ pnpm smoke:deployment
 The deploy command validates production configuration, builds all assets, performs a Wrangler dry
 run, applies pending D1 migrations, uploads assets, and deploys the Worker. The smoke test creates a
 short-lived test share, verifies upload/read authorization and byte equality, then deletes it.
+
+## Expired share sweep
+
+Expiry refuses access; it does not free storage. A cron trigger reclaims it.
+
+`triggers.crons` in `apps/api-cloudflare/wrangler.base.jsonc` runs the sweep at `17 * * * *`, off the
+top of the hour. The schedule is platform structure, so it is committed with the rest of the Wrangler
+base rather than read from `.env`.
+
+- The sweep is a `scheduled` export on the Worker, not an HTTP route. Nothing can trigger it with a
+  request, and it exposes no counts over HTTP.
+- It lists expired shares through the `shares_expiry_idx` index, then removes each share's R2
+  prefix before its D1 row, using the same `deleteShare` path as `DELETE /v1/shares/:id`.
+- Each share is independent. If object removal fails, the row stays and the next run retries it, so a
+  storage failure never orphans ciphertext behind a deleted record.
+- A run lists at most `EXPIRED_SWEEP_LIMIT` shares in batches of `EXPIRED_BATCH_SIZE`. A large
+  backlog drains across several runs; the log line reports `truncated` when that happens.
+- The log line contains counts and duration only. Share ids, object keys, and credentials are never
+  logged.
+
+Run it locally against local storage with a test-scheduled server:
+
+```sh
+pnpm --filter @share/api-cloudflare exec wrangler dev --config wrangler.generated.jsonc \
+  --port 8787 --ip 127.0.0.1 --test-scheduled
+curl -X POST "http://127.0.0.1:8787/cdn-cgi/local/explorer/api/local/scheduled?worker=encrypted-share" \
+  -H 'Content-Type: application/json' -d '{"cron":"17 * * * *"}'
+```
+
+The response is `{"success":true,...}` and the server log reports `scanned`, `removed`, and `failed`.
 
 ## Custom domains and workers.dev
 

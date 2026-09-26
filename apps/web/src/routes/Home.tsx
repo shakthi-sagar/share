@@ -1,3 +1,4 @@
+import { ApiError, deleteEncryptedShare } from "@share/client";
 import {
   ArrowRight,
   Copy,
@@ -5,14 +6,20 @@ import {
   FileUp,
   FolderInput,
   FolderOpen,
-  HardDrive,
   Pencil,
   ShieldCheck,
+  ShieldOff,
   Trash2,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ActionDialog } from "../components/ActionDialog";
+import { API_BASE_URL } from "../lib/config";
 import { formatBytes } from "../lib/format";
+import {
+  forgetPublishedShare,
+  listPublishedShares,
+  type PublishedShare,
+} from "../lib/published-shares";
 import {
   createWorkspace,
   duplicateWorkspace,
@@ -23,7 +30,10 @@ import {
 import { workspaceStore } from "../workspace/store";
 import type { Workspace, WorkspaceImportFile } from "../workspace/types";
 
-type HomeDialog = { kind: "rename" | "delete"; workspace: Workspace } | null;
+type HomeDialog =
+  | { kind: "rename" | "delete"; workspace: Workspace }
+  | { kind: "revoke"; share: PublishedShare }
+  | null;
 
 export function Home(): React.JSX.Element {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -32,6 +42,8 @@ export function Home(): React.JSX.Element {
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dialog, setDialog] = useState<HomeDialog>(null);
+  const [shares, setShares] = useState<PublishedShare[]>([]);
+  const [revoking, setRevoking] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
 
@@ -54,6 +66,17 @@ export function Home(): React.JSX.Element {
       active = false;
     };
   }, []);
+
+  const refreshShares = useCallback(() => {
+    setShares(listPublishedShares());
+  }, []);
+
+  useEffect(() => {
+    refreshShares();
+    // Another tab publishing or revoking a share updates this list.
+    window.addEventListener("storage", refreshShares);
+    return () => window.removeEventListener("storage", refreshShares);
+  }, [refreshShares]);
 
   async function openNewWorkspace(workspace: Workspace): Promise<void> {
     setBusy(true);
@@ -87,6 +110,25 @@ export function Home(): React.JSX.Element {
     setWorkspaces(await workspaceStore.list());
   }
 
+  async function revokeShare(share: PublishedShare): Promise<void> {
+    setRevoking(share.id);
+    try {
+      await deleteEncryptedShare(API_BASE_URL, share.id, share.deleteToken);
+    } catch (caught) {
+      // A share that is already gone is indistinguishable from one this browser never published.
+      // Anything else keeps the local record so the revoke can be retried.
+      if (caught instanceof ApiError && caught.status === 404) {
+        forgetPublishedShare(share.id);
+        refreshShares();
+        return;
+      }
+      throw caught;
+    }
+    forgetPublishedShare(share.id);
+    setRevoking(null);
+    refreshShares();
+  }
+
   return (
     <main className="home-shell workspace-home">
       <section className="workspace-intro">
@@ -103,9 +145,6 @@ export function Home(): React.JSX.Element {
             <h2 id="start-heading">New workspace</h2>
             <p>Nothing is uploaded until you choose Share.</p>
           </div>
-          <span className="local-badge">
-            <HardDrive size={12} aria-hidden="true" /> Local draft
-          </span>
         </div>
 
         <section
@@ -265,6 +304,46 @@ export function Home(): React.JSX.Element {
         ) : null}
       </section>
 
+      {shares.length > 0 ? (
+        <section className="published-shares" aria-labelledby="published-heading">
+          <div className="section-heading">
+            <div>
+              <h2 id="published-heading">Published shares</h2>
+              <p>Encrypted snapshots this browser can revoke.</p>
+            </div>
+          </div>
+          <div className="published-table">
+            <div className="published-table-head" aria-hidden="true">
+              <span>Share</span>
+              <span>Expires</span>
+              <span />
+            </div>
+            <ul className="published-list">
+              {shares.map((share) => (
+                <li key={share.id}>
+                  <code className="published-id" title={share.id}>
+                    {share.id}
+                  </code>
+                  <span className="published-expiry">
+                    {formatShareExpiry(share.expiresAt, revoking === share.id)}
+                  </span>
+                  <button
+                    className="icon-button danger-action"
+                    type="button"
+                    aria-label={`Revoke share ${share.id}`}
+                    title="Revoke share"
+                    disabled={revoking === share.id}
+                    onClick={() => setDialog({ kind: "revoke", share })}
+                  >
+                    <ShieldOff size={15} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      ) : null}
+
       {error ? (
         <p className="inline-error" role="alert">
           {error}
@@ -308,6 +387,20 @@ export function Home(): React.JSX.Element {
           }}
         />
       ) : null}
+      {dialog?.kind === "revoke" ? (
+        <ActionDialog
+          title="Revoke this share?"
+          description={`The encrypted snapshot ${dialog.share.id} is deleted and the link stops working. This cannot be undone.`}
+          confirmLabel="Revoke share"
+          danger
+          onClose={() => setDialog(null)}
+          onConfirm={async () => {
+            await revokeShare(dialog.share);
+            setDialog(null);
+          }}
+        />
+      ) : null}
+
       {dialog?.kind === "delete" ? (
         <ActionDialog
           title={`Delete “${dialog.workspace.name}”?`}
@@ -324,6 +417,23 @@ export function Home(): React.JSX.Element {
       ) : null}
     </main>
   );
+}
+
+function formatShareExpiry(expiresAt: string | null, revoking: boolean): string {
+  if (revoking) {
+    return "Revoking…";
+  }
+  if (!expiresAt) {
+    return "Never";
+  }
+  const timestamp = Date.parse(expiresAt);
+  if (Number.isNaN(timestamp)) {
+    return "Unknown";
+  }
+  if (timestamp <= Date.now()) {
+    return "Expired";
+  }
+  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(timestamp);
 }
 
 function formatRelativeTime(timestamp: number): string {

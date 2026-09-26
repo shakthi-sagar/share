@@ -63,6 +63,10 @@ development `.env.local` would leak `http://localhost` URLs into the production 
 | `pnpm deploy:cloudflare` | Apply migrations and deploy the production Worker |
 | `pnpm smoke:deployment` | Exercise the deployed health, web, CORS, D1, R2, and auth path |
 
+To exercise the hourly expired-share sweep against local storage, start the API with
+`wrangler dev --test-scheduled` and post to the local scheduled endpoint. See
+`docs/deployment.md` for the exact command.
+
 ## Making changes
 
 ### Protocol or crypto
