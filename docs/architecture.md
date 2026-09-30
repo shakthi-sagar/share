@@ -113,6 +113,8 @@ It does not depend on Cloudflare APIs.
 - local file organization and text editing
 - image and unsupported-file preview states
 - conversion from the current workspace to `@share/client` source files
+- file previews in `src/preview`, shared by the viewer and the workspace editor, which render
+  decrypted content without ever letting it execute in the page
 
 The workspace store is not imported by the protocol, client, server, or Worker packages.
 

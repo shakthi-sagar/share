@@ -79,10 +79,14 @@ short-lived test share, verifies upload/read authorization and byte equality, th
 
 `apps/web/vite.config.ts` emits `dist/_headers` during the build. Workers Static Assets applies it to
 every page, including the single-page fallback, with a strict Content Security Policy
-(`connect-src` is the site plus `SHARE_PUBLIC_API_URL`), `Referrer-Policy: no-referrer`,
-`X-Frame-Options: DENY`, and related headers. API responses get equivalent headers from Hono. The
-Vite development server does not send them; check them against `wrangler dev`, which serves the
-built assets.
+(`script-src 'self'`, `worker-src 'self'` for the pdf.js worker, and `connect-src` limited to the
+site plus `SHARE_PUBLIC_API_URL`). `style-src` also allows `'unsafe-inline'`, because Mermaid's
+SVG and the CSS inside a sandboxed HTML preview need inline styles; CSS cannot run script, and its
+ways of sending data out (images, fonts, connections) remain restricted to this origin. The build
+also copies the pdf.js character maps and standard fonts to `/pdfjs/`. Pages also get
+`Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, and related headers. API responses get
+equivalent headers from Hono. The Vite development server does not send them; check them against
+`wrangler dev`, which serves the built assets.
 
 ## Expired and abandoned share sweep
 

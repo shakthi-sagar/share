@@ -152,6 +152,31 @@ can do next. Success state must keep the share link and its secrecy requirement 
 Markdown in a share and Markdown in the documentation share the same typography tokens and reading
 measure. Reuse `.markdown-body` for structure and add only page-specific layout rules.
 
+### File previews
+
+`apps/web/src/preview` owns every preview, shared by the viewer and the workspace editor.
+`previewKind` classifies a file from its extension first and its MIME type second; `kinds.test.ts`
+lists the mapping. Only files the browser cannot show (archives, office documents, HEIC, and
+unknown binaries) fall back to the download state.
+
+- Text kinds (Markdown, CSV, JSON, SVG, HTML, code, plain text) offer `Preview` and `Source`, and
+  Markdown, SVG, and HTML also offer `Split` on wide screens. The switch is a segmented control in
+  the file header; the workspace editor uses `Edit`, `Split`, and `Preview` tabs instead.
+- Source uses `CodeView`: a line-number gutter and highlight.js colors from the `--syntax-*`
+  tokens. Highlighting stops past 300,000 characters.
+- `SplitView` owns the resizable divider. It is a focusable separator (arrow keys, Home, End, Enter
+  to reset) and keeps both panes' scroll positions proportional.
+- Mermaid fences render as diagrams with a `Show source` toggle; a syntax error shows the message
+  and the source instead of failing the whole document.
+- Each kind has a preview size limit in `PREVIEW_LIMIT_BYTES`. Past it the file is offered for
+  download rather than decrypted into memory. Unknown files up to 2 MiB are decrypted and shown as
+  text when they look like UTF-8 text.
+- Media previews always get a blob type chosen by `safeMediaType`, never the sender's MIME type.
+- The transparency checkerboard behind SVG previews is the only gradient in the system; it is
+  functional, not decorative.
+- mermaid, highlight.js, and pdf.js load on first use, so a share without diagrams, code, or PDFs
+  never downloads them.
+
 ### Artifact viewer
 
 The viewer keeps share identity in its fixed header, navigation in the file tree, and the selected

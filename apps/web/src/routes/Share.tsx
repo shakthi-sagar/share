@@ -6,10 +6,6 @@ import {
   ChevronRight,
   Download,
   Eye,
-  File,
-  FileCode2,
-  FileImage,
-  FileText,
   Folder,
   KeyRound,
   LockKeyhole,
@@ -19,13 +15,26 @@ import {
 import { type KeyboardEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { CopyButton } from "../components/CopyButton";
 import { Header } from "../components/Header";
-import { MarkdownPreview } from "../components/MarkdownPreview";
 import { API_BASE_URL } from "../lib/config";
 import { describeShareError } from "../lib/errors";
-import { filePreviewKind } from "../lib/file-kind";
 import { type BundleTreeNode, buildFileTree, directoryPaths } from "../lib/file-tree";
 import { formatBytes } from "../lib/format";
 import { keyFromInput } from "../lib/share-key";
+import {
+  BlobPreview,
+  DownloadOnly,
+  type LoadedPreview,
+  ModeSwitch,
+  modesFor,
+  type PreviewMode,
+  RenderedText,
+  SourceText,
+  useLoadedPreview,
+  useWideLayout,
+} from "../preview/FilePreview";
+import { KindIcon } from "../preview/KindIcon";
+import { hasRenderedView, previewKind } from "../preview/kinds";
+import { SplitView } from "../preview/SplitView";
 
 export function Share({ id }: { id: string }): React.JSX.Element {
   const fragmentKey = new URLSearchParams(window.location.hash.slice(1)).get("k");
@@ -386,13 +395,6 @@ function TreeNodes({
   );
 }
 
-type PreviewState =
-  | { kind: "loading" }
-  | { kind: "error"; message: string }
-  | { kind: "text"; content: string }
-  | { kind: "image"; url: string }
-  | { kind: "binary" };
-
 /** The selected file: its identity and actions, then its decrypted preview. */
 function FileView({
   share,
@@ -401,41 +403,20 @@ function FileView({
   share: UnlockedShare;
   file: ManifestFile;
 }): React.JSX.Element {
-  const previewKind = filePreviewKind(file.path, file.mime);
-  const [preview, setPreview] = useState<PreviewState>(
-    previewKind === "binary" ? { kind: "binary" } : { kind: "loading" },
+  const loaded = useLoadedPreview(
+    file,
+    () => new Response(share.openFile(file)).blob(),
+    (error) => describeShareError(error, "Unable to open file"),
   );
+  const wide = useWideLayout();
+  const kind = loaded.status === "ready" ? loaded.kind : previewKind(file.path, file.mime);
+  const modes = modesFor(kind, wide);
+  const [preferred, setPreferred] = useState<PreviewMode>("rendered");
+  const mode = modes.includes(preferred) ? preferred : "rendered";
   const segments = file.path.split("/");
   const fileName = displayPath(segments.at(-1) ?? file.path);
   const folder = segments.length > 1 ? displayPath(segments.slice(0, -1).join("/")) : null;
-
-  useEffect(() => {
-    if (previewKind === "binary") return;
-    let active = true;
-    let objectUrl: string | null = null;
-
-    void new Response(share.openFile(file))
-      .blob()
-      .then(async (blob) => {
-        if (!active) return;
-        if (previewKind === "image") {
-          objectUrl = URL.createObjectURL(blob);
-          setPreview({ kind: "image", url: objectUrl });
-        } else {
-          setPreview({ kind: "text", content: await blob.text() });
-        }
-      })
-      .catch((caught: unknown) => {
-        if (active) {
-          setPreview({ kind: "error", message: describeShareError(caught, "Unable to open file") });
-        }
-      });
-
-    return () => {
-      active = false;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [share, file, previewKind]);
+  const text = loaded.status === "ready" ? loaded.text : null;
 
   return (
     <div className="viewer-file-view">
@@ -449,67 +430,75 @@ function FileView({
           </span>
         </div>
         <div className="viewer-file-actions">
-          {preview.kind === "text" ? <CopyButton value={preview.content} label="Copy" /> : null}
+          {text !== null ? <ModeSwitch modes={modes} mode={mode} onChange={setPreferred} /> : null}
+          {text !== null ? <CopyButton value={text} label="Copy" /> : null}
           <DownloadButton share={share} file={file} />
         </div>
       </div>
       <div className="viewer-file-content">
-        <FilePreview preview={preview} file={file} fileName={fileName} share={share} />
+        <FileBody loaded={loaded} file={file} fileName={fileName} mode={mode} share={share} />
       </div>
     </div>
   );
 }
 
-function FilePreview({
-  preview,
+function FileBody({
+  loaded,
   file,
   fileName,
+  mode,
   share,
 }: {
-  preview: PreviewState;
+  loaded: LoadedPreview;
   file: ManifestFile;
   fileName: string;
+  mode: PreviewMode;
   share: UnlockedShare;
 }): React.JSX.Element {
-  if (preview.kind === "loading") {
+  if (loaded.status === "loading") {
     return (
       <div className="content-state" role="status">
         <Eye size={18} aria-hidden="true" /> Decrypting {fileName}…
       </div>
     );
   }
-  if (preview.kind === "error") {
+  if (loaded.status === "error") {
     return (
       <div className="content-state error-state" role="alert">
-        {preview.message}
+        {loaded.message}
       </div>
     );
   }
-  if (preview.kind === "text") {
-    return filePreviewKind(file.path, file.mime) === "markdown" ? (
-      <MarkdownPreview content={preview.content} />
-    ) : (
-      <pre className="code-viewer">
-        <code>{preview.content}</code>
-      </pre>
-    );
-  }
-  if (preview.kind === "image") {
+  if (loaded.status === "download") {
     return (
-      <div className="image-viewer">
-        <img src={preview.url} alt={fileName} />
-      </div>
+      <DownloadOnly
+        reason={loaded.reason}
+        name={fileName}
+        size={file.size}
+        action={<DownloadButton share={share} file={file} />}
+      />
     );
   }
-  return (
-    <div className="binary-viewer">
-      <File size={30} strokeWidth={1.4} aria-hidden="true" />
-      <h1>{fileName}</h1>
-      <p>{formatBytes(file.size)}</p>
-      <p>This file type cannot be previewed. Download it to open it on this device.</p>
-      <DownloadButton share={share} file={file} />
-    </div>
+  if (loaded.text === null) {
+    return (
+      <BlobPreview
+        kind={loaded.kind}
+        blob={loaded.blob}
+        path={file.path}
+        mime={file.mime}
+        name={fileName}
+      />
+    );
+  }
+  const rendered = (
+    <RenderedText kind={loaded.kind} text={loaded.text} path={file.path} name={fileName} />
   );
+  const source = <SourceText kind={loaded.kind} text={loaded.text} path={file.path} />;
+  if (!hasRenderedView(loaded.kind) || mode === "source") return source;
+  if (mode === "split") {
+    return <SplitView left={source} right={rendered} leftLabel="Source" rightLabel="Preview" />;
+  }
+  return rendered;
 }
 
 function DownloadButton({
@@ -562,11 +551,7 @@ function DownloadButton({
 }
 
 function FileIcon({ file }: { file: ManifestFile }): React.JSX.Element {
-  const kind = filePreviewKind(file.path, file.mime);
-  if (file.mime.startsWith("image/")) return <FileImage size={15} aria-hidden="true" />;
-  if (kind === "markdown") return <FileText size={15} aria-hidden="true" />;
-  if (kind === "text") return <FileCode2 size={15} aria-hidden="true" />;
-  return <File size={15} aria-hidden="true" />;
+  return <KindIcon kind={previewKind(file.path, file.mime)} />;
 }
 
 function EmptyBundle(): React.JSX.Element {

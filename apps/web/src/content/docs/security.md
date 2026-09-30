@@ -43,7 +43,12 @@ version, share ID, object ID, index, and expected plaintext length.
   control or text-direction characters, and the viewer shows any such character in an older share
   as a visible `\u{…}` escape, so a file name cannot display as a different one.
 - Pages are served with a strict Content Security Policy, because a script injected into the viewer
-  could read the key from the URL fragment.
+  could read the key from the URL fragment. Only this origin's scripts run; nothing loads from
+  another origin except the configured API.
+- Previews never run content from a share. SVG files and Mermaid diagrams are shown as images, which
+  cannot execute script. HTML renders in an iframe sandboxed with no permissions. PDFs are drawn by
+  pdf.js onto canvases without their scripts, forms, or links. Media are given a type chosen by the
+  app, never by the sender, so a file cannot make the browser treat it as a page.
 - The API rate limits share creation and uploads and caps the ciphertext one share can store.
 - Manifest and chunk reads stay bounded; no request buffers an entire share.
 - Authorization headers, tokens, read credentials, fragments, manifests, and paths are never logged.

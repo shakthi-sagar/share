@@ -1,3 +1,6 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig, loadEnv, type Plugin } from "vite";
@@ -12,7 +15,12 @@ export default defineConfig(({ mode }) => {
   return {
     envDir: repositoryRoot,
     envPrefix: "SHARE_PUBLIC_",
-    plugins: [react(), securityHeaders(apiUrl.origin)],
+    plugins: [react(), securityHeaders(apiUrl.origin), pdfjsAssets()],
+    build: {
+      // Mermaid layouts, highlight.js, and pdf.js are large, but each loads only when a file needs
+      // it; the entry chunk stays small. Warn only about chunks larger than any of those.
+      chunkSizeWarningLimit: 1600,
+    },
     server: {
       host: webUrl.hostname,
       port: webUrl.port ? Number(webUrl.port) : 5173,
@@ -29,10 +37,15 @@ function securityHeaders(apiOrigin: string): Plugin {
   const csp = [
     "default-src 'none'",
     "script-src 'self'",
-    "style-src 'self'",
+    // Inline styles are needed by Mermaid's SVG output and by the page's own CSS inside a
+    // sandboxed HTML preview, which inherits this policy. They cannot run script, and every way
+    // CSS could send data out (images, fonts, connections) stays restricted below.
+    "style-src 'self' 'unsafe-inline'",
     "img-src 'self' blob: data:",
     "media-src 'self' blob:",
     "font-src 'self'",
+    // pdf.js decodes documents in a worker loaded from this origin.
+    "worker-src 'self'",
     `connect-src 'self' ${apiOrigin}`,
     "manifest-src 'self'",
     "base-uri 'none'",
@@ -58,6 +71,41 @@ function securityHeaders(apiOrigin: string): Plugin {
         fileName: "_headers",
         source: `/*\n${lines.join("\n")}\n`,
       });
+    },
+  };
+}
+
+/**
+ * Serves the pdf.js character maps and standard fonts at `/pdfjs/`, so PDFs with CJK text or
+ * non-embedded fonts render correctly without fetching anything from another origin.
+ */
+function pdfjsAssets(): Plugin {
+  const root = dirname(createRequire(import.meta.url).resolve("pdfjs-dist/package.json"));
+  const folders = ["cmaps", "standard_fonts"];
+  return {
+    name: "share-pdfjs-assets",
+    configureServer(server) {
+      server.middlewares.use((request, response, next) => {
+        const match = /^\/pdfjs\/(cmaps|standard_fonts)\/([\w.-]+)$/u.exec(request.url ?? "");
+        if (!match?.[1] || !match[2]) return next();
+        try {
+          response.setHeader("Content-Type", "application/octet-stream");
+          response.end(readFileSync(join(root, match[1], match[2])));
+        } catch {
+          next();
+        }
+      });
+    },
+    generateBundle() {
+      for (const folder of folders) {
+        for (const file of readdirSync(join(root, folder))) {
+          this.emitFile({
+            type: "asset",
+            fileName: `pdfjs/${folder}/${file}`,
+            source: readFileSync(join(root, folder, file)),
+          });
+        }
+      }
     },
   };
 }
