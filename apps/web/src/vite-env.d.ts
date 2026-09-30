@@ -5,6 +5,7 @@ import "react";
 interface ImportMetaEnv {
   readonly SHARE_PUBLIC_API_URL: string;
   readonly SHARE_PUBLIC_DEFAULT_EXPIRY_SECONDS: string;
+  readonly SHARE_PUBLIC_MAX_SHARE_BYTES: string;
   readonly SHARE_PUBLIC_WEB_URL: string;
 }
 

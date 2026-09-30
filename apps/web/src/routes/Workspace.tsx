@@ -244,7 +244,10 @@ export function WorkspaceEditor({ id }: { id: string }): React.JSX.Element {
             disabled={files.length === 0}
             onClick={() => setShareOpen(true)}
           >
-            <Share2 size={15} /> Share snapshot
+            <Share2 size={15} aria-hidden="true" />
+            <span>
+              Share<span className="hide-narrow"> snapshot</span>
+            </span>
           </button>
         </div>
       </header>
@@ -740,8 +743,8 @@ function EntryView({
         <div className="entry-identity">
           {entry.type === "folder" ? <Folder size={16} /> : <WorkspaceFileIcon entry={entry} />}
           <div>
-            <strong>{entry.name}</strong>
-            <span>{pathForEntry(workspace, entry.id)}</span>
+            <strong title={pathForEntry(workspace, entry.id)}>{entry.name}</strong>
+            <span>{parentLabel(workspace, entry)}</span>
           </div>
         </div>
         <div className="entry-actions">
@@ -770,14 +773,21 @@ function EntryView({
               ))}
             </select>
           </label>
-          <button className="icon-button" type="button" onClick={onRename} aria-label="Rename">
+          <button
+            className="icon-button"
+            type="button"
+            onClick={onRename}
+            aria-label={`Rename ${entry.name}`}
+            title="Rename"
+          >
             <Pencil size={15} />
           </button>
           <button
             className="icon-button danger-action"
             type="button"
             onClick={onDelete}
-            aria-label="Delete"
+            aria-label={`Delete ${entry.name}`}
+            title="Delete"
           >
             <Trash2 size={15} />
           </button>
@@ -1014,4 +1024,9 @@ function downloadBlob(blob: Blob, name: string): void {
   anchor.download = name;
   anchor.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+/** Where an entry lives, shown under its name: the parent folder path, or the workspace root. */
+function parentLabel(workspace: Workspace, entry: WorkspaceEntry): string {
+  return entry.parentId ? `in ${pathForEntry(workspace, entry.parentId)}` : "in workspace root";
 }

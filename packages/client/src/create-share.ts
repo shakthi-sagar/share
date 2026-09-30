@@ -1,29 +1,26 @@
 import {
   deriveFileKey,
   deriveShareKeys,
-  encodeBase64Url,
   encodeMasterKey,
   encryptChunk,
   encryptManifest,
-  generateFileNoncePrefix,
   generateMasterKey,
   hashCredential,
   toArrayBuffer,
 } from "@share/crypto";
-import {
-  createShareResponseSchema,
-  DEFAULT_CHUNK_SIZE,
-  isSafeRelativePath,
-  type ManifestFile,
-  PROTOCOL_VERSION,
-  type ShareManifest,
-} from "@share/protocol";
+import { createShareResponseSchema, DEFAULT_CHUNK_SIZE } from "@share/protocol";
 import { apiUrl, requireOk } from "./http";
+import { assertShareWithinLimits, measureManifest, planManifest } from "./limits";
 import { fixedSizeChunks } from "./streams";
 import type { CreatedShare, CreateShareOptions } from "./types";
 
 export async function createEncryptedShare(options: CreateShareOptions): Promise<CreatedShare> {
-  validateSources(options.files);
+  // Plan and measure everything before the first request, so a share that cannot be published
+  // fails here instead of after its chunks were uploaded.
+  const manifest = planManifest(options.name, options.files);
+  const measurement = measureManifest(manifest);
+  assertShareWithinLimits(measurement, options.maxShareBytes);
+
   const request = options.fetch ?? globalThis.fetch;
   const masterKey = options.masterKey ?? generateMasterKey();
   options.onProgress?.({ stage: "creating" });
@@ -37,19 +34,21 @@ export async function createEncryptedShare(options: CreateShareOptions): Promise
   );
   const created = createShareResponseSchema.parse(await creationResponse.json());
   const shareKeys = await deriveShareKeys(masterKey, created.id);
-  const manifestFiles: ManifestFile[] = [];
-  let chunkCount = 0;
   let ciphertextBytes = 0;
 
-  for (const source of options.files) {
-    const objectId = encodeBase64Url(crypto.getRandomValues(new Uint8Array(16)));
-    const noncePrefix = generateFileNoncePrefix();
-    const totalChunks = Math.ceil(source.size / DEFAULT_CHUNK_SIZE);
-    const fileKey = await deriveFileKey(masterKey, created.id, objectId);
+  for (const [fileIndex, source] of options.files.entries()) {
+    const planned = manifest.files[fileIndex];
+    if (!planned) {
+      throw new Error("The share plan does not match its files");
+    }
+    const fileKey = await deriveFileKey(masterKey, created.id, planned.id);
     let processedBytes = 0;
     let index = 0;
 
     for await (const plaintext of fixedSizeChunks(source.stream(), DEFAULT_CHUNK_SIZE)) {
+      if (index >= planned.chunks) {
+        throw new Error(`File changed while it was being read: ${source.path}`);
+      }
       options.onProgress?.({
         stage: "encrypting",
         path: source.path,
@@ -58,15 +57,15 @@ export async function createEncryptedShare(options: CreateShareOptions): Promise
       });
       const ciphertext = await encryptChunk(plaintext, fileKey, {
         shareId: created.id,
-        objectId,
+        objectId: planned.id,
         index,
-        noncePrefix,
+        noncePrefix: planned.noncePrefix,
       });
       await requireOk(
         await request(
           apiUrl(
             options.apiBaseUrl,
-            `/v1/shares/${created.id}/objects/${objectId}/chunks/${index}`,
+            `/v1/shares/${created.id}/objects/${planned.id}/chunks/${index}`,
           ),
           {
             method: "PUT",
@@ -78,35 +77,19 @@ export async function createEncryptedShare(options: CreateShareOptions): Promise
       processedBytes += plaintext.byteLength;
       ciphertextBytes += ciphertext.byteLength;
       index += 1;
-      chunkCount += 1;
       options.onProgress?.({
         stage: "uploading",
         path: source.path,
         uploadedChunks: index,
-        totalChunks,
+        totalChunks: planned.chunks,
       });
     }
 
-    if (processedBytes !== source.size || index !== totalChunks) {
+    if (processedBytes !== source.size || index !== planned.chunks) {
       throw new Error(`File changed while it was being read: ${source.path}`);
     }
-
-    manifestFiles.push({
-      id: objectId,
-      path: source.path,
-      mime: source.mime || "application/octet-stream",
-      size: source.size,
-      chunkSize: DEFAULT_CHUNK_SIZE,
-      chunks: totalChunks,
-      noncePrefix,
-    });
   }
 
-  const manifest: ShareManifest = {
-    version: PROTOCOL_VERSION,
-    name: options.name,
-    files: manifestFiles,
-  };
   const encryptedManifest = await encryptManifest(manifest, shareKeys.manifest, created.id);
   ciphertextBytes += encryptedManifest.byteLength;
   await requireOk(
@@ -127,8 +110,8 @@ export async function createEncryptedShare(options: CreateShareOptions): Promise
       },
       body: JSON.stringify({
         accessCredentialHash: await hashCredential(shareKeys.readCredential),
-        objectCount: manifestFiles.length,
-        chunkCount,
+        objectCount: manifest.files.length,
+        chunkCount: measurement.chunkCount,
         ciphertextBytes,
       }),
     }),
@@ -145,23 +128,4 @@ export async function createEncryptedShare(options: CreateShareOptions): Promise
     deleteToken: created.deleteToken,
     expiresAt: created.expiresAt,
   };
-}
-
-function validateSources(files: CreateShareOptions["files"]): void {
-  if (files.length === 0) {
-    throw new Error("At least one file is required");
-  }
-  const paths = new Set<string>();
-  for (const file of files) {
-    if (!isSafeRelativePath(file.path)) {
-      throw new Error(`Unsafe file path: ${file.path}`);
-    }
-    if (!Number.isSafeInteger(file.size) || file.size < 0) {
-      throw new Error(`Invalid file size: ${file.path}`);
-    }
-    if (paths.has(file.path)) {
-      throw new Error(`Duplicate file path: ${file.path}`);
-    }
-    paths.add(file.path);
-  }
 }

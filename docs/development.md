@@ -63,6 +63,14 @@ development `.env.local` would leak `http://localhost` URLs into the production 
 | `pnpm deploy:cloudflare` | Apply migrations and deploy the production Worker |
 | `pnpm smoke:deployment` | Exercise the deployed health, web, CORS, D1, R2, and auth path |
 
+After pulling a new migration, apply it to local storage before starting the API:
+`pnpm --filter @share/api-cloudflare exec wrangler d1 migrations apply DB --local --config
+wrangler.generated.jsonc`.
+
+API route tests in `apps/api-cloudflare/test` drive the real `@share/client` against `createApi`
+with the in-memory stores from `@share/server/testing`, so they cover routing, authorization, limits,
+and a full encrypt, upload, unlock, and decrypt round trip without Cloudflare.
+
 To exercise the hourly expired-share sweep against local storage, start the API with
 `wrangler dev --test-scheduled` and post to the local scheduled endpoint. See
 `docs/deployment.md` for the exact command.

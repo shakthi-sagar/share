@@ -1,8 +1,13 @@
-import { FILE_NONCE_PREFIX_BYTES, ProtocolError } from "@share/protocol";
+import { FILE_NONCE_PREFIX_BYTES, GCM_TAG_BYTES, ProtocolError } from "@share/protocol";
 import { decodeBase64Url, encodeBase64Url, toArrayBuffer, utf8 } from "./encoding";
 
 export function generateFileNoncePrefix(): string {
   return encodeBase64Url(crypto.getRandomValues(new Uint8Array(FILE_NONCE_PREFIX_BYTES)));
+}
+
+/** Total ciphertext bytes stored for a file of `plaintextBytes` split into `chunkSize` chunks. */
+export function encryptedFileBytes(plaintextBytes: number, chunkSize: number): number {
+  return plaintextBytes + Math.ceil(plaintextBytes / chunkSize) * GCM_TAG_BYTES;
 }
 
 export async function encryptChunk(

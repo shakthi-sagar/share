@@ -5,10 +5,15 @@ const storagePrefix = "share:delete:";
 /**
  * A share this browser published. The delete token is the only authority that can remove the share
  * early, and it is issued once, at publish time, so it is kept here until the share expires.
+ *
+ * The snapshot name and file count are kept only so the publisher can tell shares apart. They stay
+ * in this browser, like the workspace they came from, and are never sent to the API.
  */
 export type PublishedShare = {
   id: string;
   deleteToken: string;
+  name: string | null;
+  fileCount: number | null;
   createdAt: string | null;
   expiresAt: string | null;
 };
@@ -21,11 +26,15 @@ export function rememberPublishedShare(share: {
   id: string;
   deleteToken: string;
   expiresAt: string | null;
+  name?: string;
+  fileCount?: number;
   createdAt?: string;
 }): void {
   const record: PublishedShare = {
     id: share.id,
     deleteToken: share.deleteToken,
+    name: share.name ?? null,
+    fileCount: share.fileCount ?? null,
     createdAt: share.createdAt ?? new Date().toISOString(),
     expiresAt: share.expiresAt,
   };
@@ -75,7 +84,14 @@ function parsePublishedShare(id: string, value: string): PublishedShare | null {
     return null;
   }
   if (tokenSchema.safeParse(value).success) {
-    return { id, deleteToken: value, createdAt: null, expiresAt: null };
+    return {
+      id,
+      deleteToken: value,
+      name: null,
+      fileCount: null,
+      createdAt: null,
+      expiresAt: null,
+    };
   }
   const parsed: unknown = parseJson(value);
   if (!parsed || typeof parsed !== "object") {
@@ -90,6 +106,11 @@ function parsePublishedShare(id: string, value: string): PublishedShare | null {
   return {
     id,
     deleteToken: storedToken.data,
+    name: typeof record.name === "string" && record.name ? record.name.slice(0, 255) : null,
+    fileCount:
+      Number.isSafeInteger(record.fileCount) && (record.fileCount ?? -1) >= 0
+        ? (record.fileCount ?? null)
+        : null,
     createdAt: isoOrNull(record.createdAt),
     expiresAt: isoOrNull(record.expiresAt),
   };

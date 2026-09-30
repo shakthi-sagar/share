@@ -18,7 +18,9 @@ separately derived read credential, and requires that credential before returnin
 - Separate manifest, file, read authorization, upload, and deletion credentials
 - Expiring shares
 - Revoking a published share from the browser that published it
-- Hourly sweep that deletes expired shares from storage
+- Hourly sweep that deletes expired shares and abandoned uploads from storage
+- Per-address rate limits and a configurable per-share size limit
+- Strict Content Security Policy on every page
 - Lazy file download and local decryption
 - Markdown, text, code, and image previews
 - Collapsible nested folder tree

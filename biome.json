@@ -6,7 +6,8 @@
       "!!**/dist",
       "!!**/coverage",
       "!!**/.wrangler",
-      "!!**/worker-configuration.d.ts"
+      "!!**/worker-configuration.d.ts",
+      "!!**/wrangler.generated.jsonc"
     ]
   },
   "formatter": {

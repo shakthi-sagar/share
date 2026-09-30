@@ -41,3 +41,27 @@ Each file has an independent derived AES key and random eight-byte nonce prefix.
 Chunk authenticated data binds protocol version, share ID, object ID, index and expected
 plaintext length. Chunks are independently authenticated and can be retrieved lazily.
 
+
+## Paths and names
+
+Manifest paths are parsed with `isSafeRelativePath`: relative, `/`-separated, at most 1024
+characters, with no empty, `.`, or `..` segment, no backslash, and no NUL. Clients publishing a new
+share must also satisfy `isPublishablePath`, which additionally refuses C0 and C1 control
+characters, DEL, and Unicode bidirectional formatting marks, so a name cannot render as a different
+one. The parser keeps the looser rule so shares published earlier remain readable; clients display
+paths and share names through `displayPath`, which renders those characters as `\u{XXXX}` escapes.
+
+## Size limits
+
+| Limit | Value | Enforced by |
+| --- | --- | --- |
+| Encrypted manifest | 1 MiB | Client before upload, API on upload |
+| Encrypted chunk | 4 MiB + 16-byte tag | API on upload |
+| Files per manifest | 10,000 | Client, manifest schema |
+| Chunks per share | 1,000,000 | Client before upload, API reservation |
+| Ciphertext per share | `SHARE_PUBLIC_MAX_SHARE_BYTES` | Client before upload, API reservation |
+
+The client plans the manifest, including object ids and nonce prefixes, before its first request, so
+it knows the exact encrypted size of the share up front. The API counts each accepted upload body
+against the share in the same database statement that checks the limit. Completion totals reported
+by the client may not exceed what the API accepted.

@@ -1,4 +1,5 @@
 import { ApiError, deleteEncryptedShare } from "@share/client";
+import { displayPath } from "@share/protocol";
 import {
   ArrowRight,
   Copy,
@@ -8,12 +9,12 @@ import {
   FolderOpen,
   Pencil,
   ShieldCheck,
-  ShieldOff,
   Trash2,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActionDialog } from "../components/ActionDialog";
 import { API_BASE_URL } from "../lib/config";
+import { describeShareError } from "../lib/errors";
 import { formatBytes } from "../lib/format";
 import {
   forgetPublishedShare,
@@ -117,15 +118,13 @@ export function Home(): React.JSX.Element {
     } catch (caught) {
       // A share that is already gone is indistinguishable from one this browser never published.
       // Anything else keeps the local record so the revoke can be retried.
-      if (caught instanceof ApiError && caught.status === 404) {
-        forgetPublishedShare(share.id);
-        refreshShares();
-        return;
+      if (!(caught instanceof ApiError && caught.status === 404)) {
+        throw new Error(describeShareError(caught, "The share could not be revoked"));
       }
-      throw caught;
+    } finally {
+      setRevoking(null);
     }
     forgetPublishedShare(share.id);
-    setRevoking(null);
     refreshShares();
   }
 
@@ -314,33 +313,51 @@ export function Home(): React.JSX.Element {
           </div>
           <div className="published-table">
             <div className="published-table-head" aria-hidden="true">
-              <span>Share</span>
+              <span>Snapshot</span>
+              <span>Published</span>
               <span>Expires</span>
               <span />
             </div>
             <ul className="published-list">
-              {shares.map((share) => (
-                <li key={share.id}>
-                  <code className="published-id" title={share.id}>
-                    {share.id}
-                  </code>
-                  <span className="published-expiry">
-                    {formatShareExpiry(share.expiresAt, revoking === share.id)}
-                  </span>
-                  <button
-                    className="icon-button danger-action"
-                    type="button"
-                    aria-label={`Revoke share ${share.id}`}
-                    title="Revoke share"
-                    disabled={revoking === share.id}
-                    onClick={() => setDialog({ kind: "revoke", share })}
-                  >
-                    <ShieldOff size={15} />
-                  </button>
-                </li>
-              ))}
+              {shares.map((share) => {
+                const label = share.name ? displayPath(share.name) : "Untitled snapshot";
+                return (
+                  <li key={share.id}>
+                    <div className="published-identity">
+                      <strong title={label}>{label}</strong>
+                      <span>
+                        <code title={share.id}>{share.id}</code>
+                        {share.fileCount !== null
+                          ? ` · ${share.fileCount} ${share.fileCount === 1 ? "file" : "files"}`
+                          : null}
+                      </span>
+                    </div>
+                    <span className="published-date">
+                      <span className="published-date-label">Published </span>
+                      {share.createdAt ? formatRelativeTime(Date.parse(share.createdAt)) : "—"}
+                    </span>
+                    <span className="published-expiry">
+                      <span className="published-date-label">Expires </span>
+                      {formatShareExpiry(share.expiresAt, revoking === share.id)}
+                    </span>
+                    <button
+                      className="button button-quiet danger-action"
+                      type="button"
+                      aria-label={`Revoke ${label} (${share.id})`}
+                      disabled={revoking === share.id}
+                      onClick={() => setDialog({ kind: "revoke", share })}
+                    >
+                      Revoke
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           </div>
+          <p className="published-note">
+            Only this browser holds the revoke tokens. Clearing site data removes this list, but the
+            shares stay live until they expire.
+          </p>
         </section>
       ) : null}
 
@@ -390,7 +407,7 @@ export function Home(): React.JSX.Element {
       {dialog?.kind === "revoke" ? (
         <ActionDialog
           title="Revoke this share?"
-          description={`The encrypted snapshot ${dialog.share.id} is deleted and the link stops working. This cannot be undone.`}
+          description={`${dialog.share.name ? `“${displayPath(dialog.share.name)}” (${dialog.share.id})` : `The encrypted snapshot ${dialog.share.id}`} is deleted and its link stops working for everyone. This cannot be undone.`}
           confirmLabel="Revoke share"
           danger
           onClose={() => setDialog(null)}
@@ -430,9 +447,15 @@ function formatShareExpiry(expiresAt: string | null, revoking: boolean): string 
   if (Number.isNaN(timestamp)) {
     return "Unknown";
   }
-  if (timestamp <= Date.now()) {
+  const remaining = timestamp - Date.now();
+  if (remaining <= 0) {
     return "Expired";
   }
+  const hours = Math.round(remaining / 3_600_000);
+  if (hours < 1) return "in under an hour";
+  if (hours < 24) return `in ${hours}h`;
+  const days = Math.round(hours / 24);
+  if (days <= 7) return `in ${days}d`;
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(timestamp);
 }
 

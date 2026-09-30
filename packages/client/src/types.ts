@@ -20,6 +20,8 @@ export interface CreateShareOptions {
   name: string;
   files: ShareSourceFile[];
   expiresInSeconds: number | null;
+  /** The operator's share size limit, checked before upload. The API enforces it regardless. */
+  maxShareBytes?: number;
   masterKey?: Uint8Array;
   fetch?: typeof globalThis.fetch;
   onProgress?: (progress: ShareProgress) => void;

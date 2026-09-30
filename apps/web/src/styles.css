@@ -2031,11 +2031,16 @@ textarea:focus-visible {
 
 .workspace-table-head {
   min-height: 36px;
-  padding: 0 var(--space-2) 0 var(--space-4);
+  padding: 0 0 0 var(--space-4);
   border-bottom: 1px solid var(--border);
   background: var(--surface-subtle);
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) 180px 130px 104px;
+  /* Mirrors a row: three data columns, the row's 8px end padding, then the 104px action group. */
+  grid-template-columns: minmax(180px, 1fr) 180px 130px calc(
+      104px -
+      var(--space-4) +
+      var(--space-2)
+    );
   align-items: center;
   gap: var(--space-4);
   color: var(--text-muted);
@@ -2464,29 +2469,46 @@ textarea:focus-visible {
   gap: var(--space-4);
 }
 
-.viewer-file-header > div {
+.viewer-file-header > svg {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+}
+
+.viewer-file-identity {
   min-width: 0;
+  flex: 1 1 auto;
   display: grid;
 }
 
-.viewer-file-header strong,
-.viewer-file-header > div span {
+.viewer-file-identity strong,
+.viewer-file-identity span {
   overflow: hidden;
   font-family: var(--mono);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.viewer-file-header strong {
+.viewer-file-identity strong {
   color: var(--text);
   font-size: var(--text-sm);
 }
 
-.viewer-file-header > div span,
-.viewer-file-header > span {
+.viewer-file-identity span {
   color: var(--text-muted);
-  font-family: var(--mono);
-  font-size: 10px;
+  font-size: var(--text-xs);
+}
+
+.viewer-file-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.viewer-download-error {
+  max-width: 240px;
+  color: var(--danger);
+  font-size: var(--text-sm);
 }
 
 .viewer-file-content {
@@ -2897,15 +2919,19 @@ textarea:focus-visible {
   overflow: hidden;
 }
 
+.published-table-head,
+.published-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px 150px 84px;
+  align-items: center;
+  gap: var(--space-4);
+}
+
 .published-table-head {
   min-height: 36px;
   padding: 0 var(--space-2) 0 var(--space-4);
   border-bottom: 1px solid var(--border);
   background: var(--surface-subtle);
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 160px var(--icon-control-size);
-  align-items: center;
-  gap: var(--space-4);
   color: var(--text-muted);
   font-family: var(--mono);
   font-size: 10px;
@@ -2920,31 +2946,66 @@ textarea:focus-visible {
 }
 
 .published-list li {
-  min-height: 52px;
-  padding: 0 var(--space-2);
+  min-height: 60px;
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
   border-bottom: 1px solid var(--border);
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 160px var(--icon-control-size);
-  align-items: center;
-  gap: var(--space-4);
 }
 
 .published-list li:last-child {
   border-bottom: 0;
 }
 
-.published-id {
+.published-identity {
   min-width: 0;
-  padding-left: var(--space-2);
+  display: grid;
+  gap: 2px;
+}
+
+.published-identity strong,
+.published-identity span {
   overflow: hidden;
-  color: var(--text);
-  font-family: var(--mono);
-  font-size: var(--text-sm);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.published-identity strong {
+  color: var(--text);
+  font-size: var(--text-ui);
+  font-weight: 600;
+}
+
+.published-identity span {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.published-identity code {
+  font-family: var(--mono);
+}
+
+.published-date,
 .published-expiry {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+/* The column headings label these values on wide screens; on narrow screens the inline label does. */
+.published-date-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.published-list .danger-action {
+  justify-self: end;
+}
+
+.published-note {
+  margin: var(--space-3) 0 0;
   color: var(--text-muted);
   font-size: var(--text-sm);
 }
@@ -2956,12 +3017,30 @@ textarea:focus-visible {
 
   .published-list li {
     grid-template-columns: minmax(0, 1fr) auto;
-    row-gap: var(--space-2);
-    padding: var(--space-3) var(--space-2);
+    row-gap: var(--space-1);
+    padding: var(--space-3) var(--space-2) var(--space-3) var(--space-3);
   }
 
+  .published-identity {
+    grid-column: 1 / -1;
+  }
+
+  .published-date,
   .published-expiry {
     grid-column: 1;
+  }
+
+  .published-list .danger-action {
+    grid-column: 2;
+    grid-row: 2 / span 2;
+  }
+
+  .published-date-label {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
   }
 }
 
@@ -2984,4 +3063,46 @@ textarea:focus-visible {
   border-radius: var(--radius-control);
   background: var(--primary-tint);
   box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+/* Publish limits, unlock progress, and narrow-screen labels */
+.publish-summary dd small {
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: var(--text-xs);
+}
+
+.unlock-progress h1 {
+  margin-bottom: var(--space-2);
+}
+
+.unlock-progress p {
+  margin: 0 0 var(--space-6);
+  color: var(--text-secondary);
+}
+
+@media (max-width: 760px) {
+  /* The workbench override above sets a 272px sidebar column; the sidebar is a drawer here. */
+  .workspace-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hide-narrow,
+  .viewer-download .button-label {
+    display: none;
+  }
+
+  .viewer-file-header {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .viewer-download {
+    width: var(--control-height);
+    padding: 0;
+    justify-content: center;
+  }
+
+  .viewer-download-error {
+    display: none;
+  }
 }

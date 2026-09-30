@@ -32,6 +32,7 @@ if (command === "sync") {
     vars: {
       SHARE_ENV: config.environment,
       SHARE_ALLOWED_ORIGINS: config.allowedOrigins.join(","),
+      SHARE_MAX_SHARE_BYTES: String(config.maxShareBytes),
     },
     d1_databases: [
       {
@@ -73,6 +74,13 @@ function readConfig({ production: requireProduction }) {
   const allowedExpiryValues = new Set([3600, 86400, 259200, 604800]);
   if (!allowedExpiryValues.has(defaultExpirySeconds)) {
     fail("SHARE_PUBLIC_DEFAULT_EXPIRY_SECONDS must be one of 3600, 86400, 259200, or 604800");
+  }
+
+  // Operator policy rather than protocol: the Worker enforces it and the web app checks it before
+  // uploading. 1 MiB is the smallest useful share; 5 TiB is far beyond any browser upload.
+  const maxShareBytes = integer("SHARE_PUBLIC_MAX_SHARE_BYTES");
+  if (maxShareBytes < 1024 * 1024 || maxShareBytes > 5 * 1024 ** 4) {
+    fail("SHARE_PUBLIC_MAX_SHARE_BYTES must be between 1048576 (1 MiB) and 5497558138880 (5 TiB)");
   }
 
   const allowedOrigins = (process.env.SHARE_ALLOWED_ORIGINS || publicWebUrl)
@@ -133,6 +141,7 @@ function readConfig({ production: requireProduction }) {
     publicWebUrl,
     publicApiUrl,
     defaultExpirySeconds,
+    maxShareBytes,
     allowedOrigins,
     customDomain,
     cloudflare,

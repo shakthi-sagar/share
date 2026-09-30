@@ -21,7 +21,8 @@ storage may be able to read them.
 ## Publishing a snapshot
 
 `Share snapshot` opens a review step that shows the file count, total size, expiry, and a bounded
-file list. Confirming it starts encryption, then chunked upload, then completion. A published
+file list, and checks the snapshot against the service's size limit before anything is uploaded.
+Confirming it starts encryption, then chunked upload, then completion. A published
 snapshot is immutable: later edits in the workspace do not change a share that is already live.
 
 The result screen keeps `Copy full link` as the primary action and moves the split link and key

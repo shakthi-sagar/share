@@ -9,6 +9,7 @@ import {
   importFiles,
   moveEntry,
   pathForEntry,
+  renameEntry,
   updateFileContent,
   workspaceFiles,
 } from "./model";
@@ -93,6 +94,22 @@ describe("workspace model", () => {
     expect(() => moveEntry(root.workspace, root.entry.id, docs.entry.id)).toThrow(
       "An item named “notes.md” already exists here",
     );
+  });
+
+  it("refuses typed names that could display as a different name", () => {
+    const { workspace, entry } = addFile(createWorkspace("w", 1), null, "notes.md");
+    expect(() => renameEntry(workspace, entry.id, "invoice\u202Efdp.exe")).toThrow(
+      /text-direction/u,
+    );
+    expect(() => addFolder(workspace, null, "tab\there")).toThrow(/control/u);
+  });
+
+  it("strips invisible formatting from imported paths and workspace names", () => {
+    const workspace = importFiles(createWorkspace("spoof\u202Ename", 1), [
+      { path: "dir\u2066/invoice\u202Efdp.exe", file: file("x", "x", "text/plain") },
+    ]);
+    expect(workspace.name).toBe("spoofname");
+    expect(workspaceFiles(workspace).map(({ path }) => path)).toEqual(["dir/invoicefdp.exe"]);
   });
 });
 

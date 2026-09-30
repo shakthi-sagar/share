@@ -8,6 +8,8 @@ import {
   deriveShareKeys,
   encodeMasterKey,
   encryptChunk,
+  encryptedFileBytes,
+  encryptedManifestBytes,
   encryptManifest,
   generateFileNoncePrefix,
   generateMasterKey,
@@ -80,5 +82,39 @@ describe("share crypto", () => {
     await expect(
       decryptChunk(encrypted, plaintext.byteLength, key, { ...context, index: 1 }),
     ).rejects.toMatchObject({ code: "CHUNK_DECRYPTION_FAILED" });
+  });
+
+  it("predicts manifest and chunk ciphertext sizes exactly", async () => {
+    const masterKey = new Uint8Array(32).fill(17);
+    const { manifest: manifestKey } = await deriveShareKeys(masterKey, shareId);
+    const manifest: ShareManifest = {
+      version: 1,
+      name: "Sizes · ünïcode",
+      files: [
+        {
+          id: objectId,
+          path: "notes/日本語.md",
+          mime: "text/markdown",
+          size: 10,
+          chunkSize: 4,
+          chunks: 3,
+          noncePrefix: generateFileNoncePrefix(),
+        },
+      ],
+    };
+    const encrypted = await encryptManifest(manifest, manifestKey, shareId);
+    expect(encryptedManifestBytes(manifest)).toBe(encrypted.byteLength);
+
+    const key = await deriveFileKey(masterKey, shareId, objectId);
+    const chunk = await encryptChunk(new Uint8Array(4), key, {
+      shareId,
+      objectId,
+      index: 0,
+      noncePrefix: generateFileNoncePrefix(),
+    });
+    expect(chunk.byteLength).toBe(20);
+    expect(encryptedFileBytes(10, 4)).toBe(10 + 3 * 16);
+    expect(encryptedFileBytes(8, 4)).toBe(8 + 2 * 16);
+    expect(encryptedFileBytes(0, 4)).toBe(0);
   });
 });

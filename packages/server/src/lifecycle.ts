@@ -1,5 +1,5 @@
 import { sharePrefix } from "./paths";
-import { requireDeleteAuthorization } from "./share-service";
+import { requireDeleteAuthorization, UPLOAD_WINDOW_SECONDS } from "./share-service";
 import type { BlobStore, MetadataStore } from "./types";
 
 /** Ids listed per metadata query. Keeps each D1 statement small. */
@@ -9,7 +9,7 @@ export const EXPIRED_BATCH_SIZE = 200;
 export const EXPIRED_SWEEP_LIMIT = 2000;
 
 export type PurgeResult = {
-  /** Expired ids examined during the sweep. */
+  /** Expired or abandoned ids examined during the sweep. */
   scanned: number;
   /** Shares whose ciphertext and metadata row are both gone. */
   removed: number;
@@ -41,8 +41,9 @@ export async function deleteShare(
 }
 
 /**
- * Removes the ciphertext and metadata of shares whose expiry has passed. Authorization already
- * refuses these shares, so this reclaims storage rather than revoking access.
+ * Removes the ciphertext and metadata of shares whose expiry has passed, and of uploads that never
+ * completed within `UPLOAD_WINDOW_SECONDS`. Authorization already refuses both, so this reclaims
+ * storage rather than revoking access.
  *
  * Each share is handled independently: a failure is reported and the metadata row stays, so the
  * next sweep retries it instead of orphaning ciphertext that nothing points to.
@@ -56,6 +57,7 @@ export async function purgeExpiredShares(
   const batchSize = clampBatch(options.batchSize ?? EXPIRED_BATCH_SIZE);
   const limit = Math.max(options.limit ?? EXPIRED_SWEEP_LIMIT, 0);
   const expiredAt = now.toISOString();
+  const abandonedBefore = new Date(now.getTime() - UPLOAD_WINDOW_SECONDS * 1000).toISOString();
   const result: PurgeResult = { scanned: 0, removed: 0, failed: 0, truncated: false };
   if (limit === 0) {
     return result;
@@ -63,7 +65,7 @@ export async function purgeExpiredShares(
 
   while (result.scanned < limit) {
     const pageSize = Math.min(batchSize, limit - result.scanned);
-    const ids = await metadata.listExpired(expiredAt, pageSize);
+    const ids = await metadata.listPurgeable(expiredAt, abandonedBefore, pageSize);
     if (ids.length === 0) {
       return result;
     }
