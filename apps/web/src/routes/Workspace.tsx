@@ -3,10 +3,7 @@ import {
   ChevronRight,
   Download,
   File,
-  FileCode2,
-  FileImage,
   FilePlus2,
-  FileText,
   Folder,
   FolderPlus,
   FolderUp,
@@ -20,10 +17,12 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ActionDialog } from "../components/ActionDialog";
-import { MarkdownPreview } from "../components/MarkdownPreview";
 import { SharePublisher } from "../components/SharePublisher";
-import { filePreviewKind } from "../lib/file-kind";
 import { formatBytes } from "../lib/format";
+import { BlobPreview, RenderedText, useWideLayout } from "../preview/FilePreview";
+import { KindIcon } from "../preview/KindIcon";
+import { hasRenderedView, isTextKind, PREVIEW_LIMIT_BYTES, previewKind } from "../preview/kinds";
+import { SplitView } from "../preview/SplitView";
 import {
   addFile,
   addFolder,
@@ -244,7 +243,10 @@ export function WorkspaceEditor({ id }: { id: string }): React.JSX.Element {
             disabled={files.length === 0}
             onClick={() => setShareOpen(true)}
           >
-            <Share2 size={15} /> Share snapshot
+            <Share2 size={15} aria-hidden="true" />
+            <span>
+              Share<span className="hide-narrow"> snapshot</span>
+            </span>
           </button>
         </div>
       </header>
@@ -740,8 +742,8 @@ function EntryView({
         <div className="entry-identity">
           {entry.type === "folder" ? <Folder size={16} /> : <WorkspaceFileIcon entry={entry} />}
           <div>
-            <strong>{entry.name}</strong>
-            <span>{pathForEntry(workspace, entry.id)}</span>
+            <strong title={pathForEntry(workspace, entry.id)}>{entry.name}</strong>
+            <span>{parentLabel(workspace, entry)}</span>
           </div>
         </div>
         <div className="entry-actions">
@@ -770,14 +772,21 @@ function EntryView({
               ))}
             </select>
           </label>
-          <button className="icon-button" type="button" onClick={onRename} aria-label="Rename">
+          <button
+            className="icon-button"
+            type="button"
+            onClick={onRename}
+            aria-label={`Rename ${entry.name}`}
+            title="Rename"
+          >
             <Pencil size={15} />
           </button>
           <button
             className="icon-button danger-action"
             type="button"
             onClick={onDelete}
-            aria-label="Delete"
+            aria-label={`Delete ${entry.name}`}
+            title="Delete"
           >
             <Trash2 size={15} />
           </button>
@@ -802,6 +811,8 @@ function EntryView({
   );
 }
 
+type EditorMode = "edit" | "split" | "preview";
+
 function WorkspaceFileView({
   entry,
   onContentChange,
@@ -809,82 +820,78 @@ function WorkspaceFileView({
   entry: Extract<WorkspaceEntry, { type: "file" }>;
   onContentChange: (content: string) => void;
 }): React.JSX.Element {
-  const kind = filePreviewKind(entry.name, entry.mimeType);
+  const kind = previewKind(entry.name, entry.mimeType);
+  const editable = isTextKind(kind);
+  const rendered = hasRenderedView(kind);
+  const wide = useWideLayout();
   const [sourceBlob] = useState(entry.blob);
-  const [content, setContent] = useState("");
-  const [mode, setMode] = useState<"edit" | "preview">(kind === "markdown" ? "edit" : "preview");
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [content, setContent] = useState<string | null>(null);
+  const [preferred, setPreferred] = useState<EditorMode>(
+    rendered ? (kind === "markdown" && wide ? "split" : "preview") : "edit",
+  );
+  const modes: EditorMode[] = rendered
+    ? wide
+      ? ["edit", "split", "preview"]
+      : ["edit", "preview"]
+    : ["edit"];
+  const mode = modes.includes(preferred) ? preferred : (modes[0] ?? "edit");
 
   useEffect(() => {
+    if (!editable) return;
     let active = true;
-    if (kind === "markdown" || kind === "text") {
-      void sourceBlob.text().then((value) => {
-        if (active) setContent(value);
-      });
-    }
-    if (kind === "image") {
-      const url = URL.createObjectURL(sourceBlob);
-      setImageUrl(url);
-      return () => {
-        active = false;
-        URL.revokeObjectURL(url);
-      };
-    }
+    void sourceBlob.text().then((value) => {
+      if (active) setContent(value);
+    });
     return () => {
       active = false;
     };
-  }, [kind, sourceBlob]);
+  }, [editable, sourceBlob]);
 
-  useEffect(() => {
-    if (kind === "markdown") setMode("edit");
-  }, [kind]);
-
-  if (kind === "markdown") {
+  if (editable) {
+    if (content === null) return <div className="content-state">Opening {entry.name}…</div>;
+    const editor = (
+      <TextEditor content={content} onChange={setContent} onPersist={onContentChange} />
+    );
+    const preview = <RenderedText kind={kind} text={content} path={entry.name} name={entry.name} />;
     return (
       <div className="workspace-editor-panel">
-        <div className="editor-tabs" role="tablist" aria-label="Markdown mode">
-          <button
-            className={mode === "edit" ? "is-active" : ""}
-            type="button"
-            role="tab"
-            aria-selected={mode === "edit"}
-            onClick={() => setMode("edit")}
-          >
-            Edit
-          </button>
-          <button
-            className={mode === "preview" ? "is-active" : ""}
-            type="button"
-            role="tab"
-            aria-selected={mode === "preview"}
-            onClick={() => setMode("preview")}
-          >
-            Preview
-          </button>
-        </div>
-        {mode === "edit" ? (
-          <TextEditor content={content} onChange={setContent} onPersist={onContentChange} />
-        ) : (
-          <div className="workspace-markdown-preview">
-            <MarkdownPreview content={content} />
+        {modes.length > 1 ? (
+          <div className="editor-tabs" role="tablist" aria-label="Editor mode">
+            {modes.map((candidate) => (
+              <button
+                key={candidate}
+                className={mode === candidate ? "is-active" : ""}
+                type="button"
+                role="tab"
+                aria-selected={mode === candidate}
+                onClick={() => setPreferred(candidate)}
+              >
+                {candidate === "edit" ? "Edit" : candidate === "split" ? "Split" : "Preview"}
+              </button>
+            ))}
           </div>
+        ) : null}
+        {mode === "edit" ? (
+          editor
+        ) : mode === "split" ? (
+          <SplitView left={editor} right={preview} leftLabel="Editor" rightLabel="Preview" />
+        ) : (
+          <div className="workspace-rendered-preview">{preview}</div>
         )}
       </div>
     );
   }
 
-  if (kind === "text") {
+  if (kind !== "binary" && entry.blob.size <= PREVIEW_LIMIT_BYTES[kind]) {
     return (
-      <div className="workspace-editor-panel">
-        <TextEditor content={content} onChange={setContent} onPersist={onContentChange} />
-      </div>
-    );
-  }
-
-  if (kind === "image" && imageUrl) {
-    return (
-      <div className="workspace-image-preview">
-        <img src={imageUrl} alt={entry.name} />
+      <div className="workspace-media-preview">
+        <BlobPreview
+          kind={kind}
+          blob={entry.blob}
+          path={entry.name}
+          mime={entry.mimeType}
+          name={entry.name}
+        />
       </div>
     );
   }
@@ -896,7 +903,11 @@ function WorkspaceFileView({
       <p>
         {entry.mimeType} · {formatBytes(entry.blob.size)}
       </p>
-      <p>This file can be stored and shared but is not editable here.</p>
+      <p>
+        {kind === "binary"
+          ? "This file can be stored and shared but is not editable or previewable here."
+          : "This file is too large to preview here."}
+      </p>
       <button
         className="button button-secondary"
         type="button"
@@ -927,6 +938,7 @@ function TextEditor({
   return (
     <textarea
       className="workspace-text-editor"
+      data-scroll-sync=""
       value={content}
       aria-label="File content"
       spellCheck={false}
@@ -1000,11 +1012,7 @@ function WorkspaceFileIcon({
 }: {
   entry: Extract<WorkspaceEntry, { type: "file" }>;
 }): React.JSX.Element {
-  const kind = filePreviewKind(entry.name, entry.mimeType);
-  if (kind === "image") return <FileImage size={15} />;
-  if (kind === "markdown") return <FileText size={15} />;
-  if (kind === "text") return <FileCode2 size={15} />;
-  return <File size={15} />;
+  return <KindIcon kind={previewKind(entry.name, entry.mimeType)} />;
 }
 
 function downloadBlob(blob: Blob, name: string): void {
@@ -1014,4 +1022,9 @@ function downloadBlob(blob: Blob, name: string): void {
   anchor.download = name;
   anchor.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+/** Where an entry lives, shown under its name: the parent folder path, or the workspace root. */
+function parentLabel(workspace: Workspace, entry: WorkspaceEntry): string {
+  return entry.parentId ? `in ${pathForEntry(workspace, entry.parentId)}` : "in workspace root";
 }

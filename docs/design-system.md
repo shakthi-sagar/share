@@ -152,16 +152,51 @@ can do next. Success state must keep the share link and its secrecy requirement 
 Markdown in a share and Markdown in the documentation share the same typography tokens and reading
 measure. Reuse `.markdown-body` for structure and add only page-specific layout rules.
 
+### File previews
+
+`apps/web/src/preview` owns every preview, shared by the viewer and the workspace editor.
+`previewKind` classifies a file from its extension first and its MIME type second; `kinds.test.ts`
+lists the mapping. Only files the browser cannot show (archives, office documents, HEIC, and
+unknown binaries) fall back to the download state.
+
+- Text kinds (Markdown, CSV, JSON, SVG, HTML, code, plain text) offer `Preview` and `Source`, and
+  Markdown, SVG, and HTML also offer `Split` on wide screens. The switch is a segmented control in
+  the file header; the workspace editor uses `Edit`, `Split`, and `Preview` tabs instead.
+- Source uses `CodeView`: a line-number gutter and highlight.js colors from the `--syntax-*`
+  tokens. Highlighting stops past 300,000 characters.
+- `SplitView` owns the resizable divider. It is a focusable separator (arrow keys, Home, End, Enter
+  to reset) and keeps both panes' scroll positions proportional.
+- Mermaid fences render as diagrams with a `Show source` toggle; a syntax error shows the message
+  and the source instead of failing the whole document.
+- Each kind has a preview size limit in `PREVIEW_LIMIT_BYTES`. Past it the file is offered for
+  download rather than decrypted into memory. Unknown files up to 2 MiB are decrypted and shown as
+  text when they look like UTF-8 text.
+- Media previews always get a blob type chosen by `safeMediaType`, never the sender's MIME type.
+- The transparency checkerboard behind SVG previews is the only gradient in the system; it is
+  functional, not decorative.
+- mermaid, highlight.js, and pdf.js load on first use, so a share without diagrams, code, or PDFs
+  never downloads them.
+
 ### Artifact viewer
 
-The viewer keeps global actions in its fixed header, navigation in the file tree, and the selected
-artifact in the reading pane. Render unsupported formats as a clear download state. Fetch and
-decrypt file content only when it is needed for preview or download.
+The viewer keeps share identity in its fixed header, navigation in the file tree, and the selected
+artifact in the reading pane. The reading pane's file header owns the per-file actions: `Copy` for
+decrypted text and `Download`, which becomes icon-only (keeping its accessible name) at the narrow
+breakpoint so it stays reachable on phones. It shows the file name and, beneath it, the parent folder
+and size rather than repeating the name. Render unsupported formats as a clear download state. Fetch
+and decrypt file content only when it is needed for preview or download.
+
+Render every name that came from a manifest through `displayPath`, so control and text-direction
+characters in an older share appear as visible escapes rather than reordering the name.
+
+The tree follows the WAI-ARIA tree pattern: Up and Down move between visible rows, Home and End jump
+to the ends, Right opens a folder or moves into it, and Left closes it.
 
 ### Workspace editor
 
 Keep workspace navigation compact and file-oriented. The header owns the workspace name, explicit
-`Local draft` save status, and `Share snapshot` action, with the right-hand controls grouped in one
+`Local draft` save status, and `Share snapshot` action (shortened to `Share` at the narrow
+breakpoint), with the right-hand controls grouped in one
 end-aligned cluster so the status stays beside the primary action. The sidebar owns labeled
 creation and import actions plus hierarchy. The content pane owns entry actions and editing or
 preview. Do not use browser prompts or confirms for create, rename, or delete; use the shared product
@@ -173,12 +208,17 @@ disk, using the same verb across the sidebar and the content pane.
 
 ### Published shares
 
-Publishing records the share id and its delete token in browser storage so the publisher can revoke
-the share before it expires. The home page lists those shares as a compact table: monospaced id,
-formatted expiry (`Never`, a date, or `Expired`), and one `Revoke` action. The section appears only
-when this browser has published shares, and it is not a list of every share on the service.
+Publishing records the share id, its delete token, and the local snapshot name and file count in
+browser storage so the publisher can recognize and revoke the share before it expires. The home page
+lists those shares as a compact table: snapshot name with the monospaced id and file count beneath,
+relative publish time, expiry (`Never`, `in 6d`, a date beyond a week, or `Expired`), and a labeled
+`Revoke` text button. Shares recorded before names were stored show `Untitled snapshot`. The section
+appears only when this browser has published shares, and it is not a list of every share on the
+service. At the narrow breakpoint the column headings are hidden and each value carries an inline
+label instead.
 
-- Keep the revoke action visible rather than hover-only. It is the only way to end a live share.
+- Keep the revoke action visible rather than hover-only, and labeled with text. It is the only way to
+  end a live share.
 - Revoking requires the shared danger dialog, names the share id, and says the deletion cannot be
   undone.
 - Treat a not-found response as success and forget the local record: an expired and swept share, or
@@ -191,10 +231,14 @@ when this browser has published shares, and it is not a list of every share on t
 ### Publishing flow
 
 Publishing has three visible states: review, progress, and result. Review shows snapshot identity,
-file count, total size, bounded file list, expiry, and the immutable/local distinction. Progress
+file count, total size against the service limit, bounded file list, expiry, and the immutable/local
+distinction. A snapshot that cannot be published, because it is too large or its file list is, shows
+the reason inline and disables `Encrypt and publish` before anything is uploaded. Errors from the
+service go through `describeShareError` so rate limits, size limits, and network failures read as
+next steps. Progress
 shows the current path plus byte or chunk progress when available. Result makes `Copy full link`
-the dominant action and keeps split link/key controls in an advanced disclosure. Keep the secrecy
-warning adjacent to the full-link action.
+the dominant action and keeps split link/key controls in an advanced disclosure. Keep the single
+secrecy warning, which also says the key cannot be recovered, adjacent to the full-link action.
 
 ### Site shell, documentation, and footer
 

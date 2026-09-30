@@ -54,6 +54,26 @@ describe("published share records", () => {
     expect(listPublishedShares().map((share) => share.id)).toEqual([otherId, id]);
   });
 
+  it("keeps the local snapshot name and file count with the record", () => {
+    rememberPublishedShare({
+      id,
+      deleteToken: token,
+      expiresAt: null,
+      name: "Notes",
+      fileCount: 3,
+    });
+    expect(listPublishedShares()[0]).toMatchObject({ name: "Notes", fileCount: 3 });
+
+    localStorage.setItem(
+      shareStorageKey(otherId),
+      JSON.stringify({ id: otherId, deleteToken: otherToken, name: 7, fileCount: -1 }),
+    );
+    expect(listPublishedShares().find((share) => share.id === otherId)).toMatchObject({
+      name: null,
+      fileCount: null,
+    });
+  });
+
   it("removes a record once the share is revoked", () => {
     rememberPublishedShare({ id, deleteToken: token, expiresAt: null });
     expect(listPublishedShares()).toHaveLength(1);
@@ -66,7 +86,7 @@ describe("published share records", () => {
   it("still reads entries stored as a bare token", () => {
     localStorage.setItem(shareStorageKey(id), token);
     expect(listPublishedShares()).toEqual([
-      { id, deleteToken: token, createdAt: null, expiresAt: null },
+      { id, deleteToken: token, name: null, fileCount: null, createdAt: null, expiresAt: null },
     ]);
   });
 
@@ -85,7 +105,7 @@ describe("published share records", () => {
       JSON.stringify({ id, deleteToken: token, createdAt: "yesterday", expiresAt: null }),
     );
     expect(listPublishedShares()).toEqual([
-      { id, deleteToken: token, createdAt: null, expiresAt: null },
+      { id, deleteToken: token, name: null, fileCount: null, createdAt: null, expiresAt: null },
     ]);
   });
 });

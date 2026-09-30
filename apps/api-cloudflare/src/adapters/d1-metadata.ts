@@ -1,5 +1,5 @@
 import type { CompleteShareRequest } from "@share/protocol";
-import type { MetadataStore, ShareRecord } from "@share/server";
+import type { MetadataStore, ShareRecord, UploadLimits, UploadReservation } from "@share/server";
 
 interface ShareRow {
   id: string;
@@ -11,6 +11,8 @@ interface ShareRow {
   object_count: number;
   chunk_count: number;
   ciphertext_bytes: number;
+  reserved_bytes: number;
+  reserved_chunks: number;
   created_at: string;
   completed_at: string | null;
   expires_at: string | null;
@@ -25,8 +27,8 @@ export class D1MetadataStore implements MetadataStore {
         `INSERT INTO shares (
           id, state, format_version, upload_token_hash, delete_token_hash,
           access_credential_hash, object_count, chunk_count, ciphertext_bytes,
-          created_at, completed_at, expires_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          reserved_bytes, reserved_chunks, created_at, completed_at, expires_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .bind(
         record.id,
@@ -38,6 +40,8 @@ export class D1MetadataStore implements MetadataStore {
         record.objectCount,
         record.chunkCount,
         record.ciphertextBytes,
+        record.reservedBytes,
+        record.reservedChunks,
         record.createdAt,
         record.completedAt,
         record.expiresAt,
@@ -77,20 +81,46 @@ export class D1MetadataStore implements MetadataStore {
     return result.meta.changes === 1;
   }
 
+  async reserve(
+    id: string,
+    reservation: UploadReservation,
+    limits: UploadLimits,
+  ): Promise<boolean> {
+    // One conditional UPDATE is the check and the increment, so concurrent uploads cannot overshoot.
+    const result = await this.database
+      .prepare(
+        `UPDATE shares SET
+          reserved_bytes = reserved_bytes + ?1, reserved_chunks = reserved_chunks + ?2
+        WHERE id = ?3 AND state = 'uploading'
+          AND reserved_bytes + ?1 <= ?4 AND reserved_chunks + ?2 <= ?5`,
+      )
+      .bind(reservation.bytes, reservation.chunks, id, limits.maxBytes, limits.maxChunks)
+      .run();
+    return result.meta.changes === 1;
+  }
+
   async remove(id: string): Promise<boolean> {
     const result = await this.database.prepare("DELETE FROM shares WHERE id = ?").bind(id).run();
     return result.meta.changes === 1;
   }
 
-  async listExpired(expiredAt: string, limit: number): Promise<string[]> {
+  async listPurgeable(
+    expiredAt: string,
+    abandonedBefore: string,
+    limit: number,
+  ): Promise<string[]> {
+    // Each branch uses its own partial index: shares_expiry_idx and shares_uploading_idx.
     const result = await this.database
       .prepare(
-        `SELECT id FROM shares
-         WHERE expires_at IS NOT NULL AND expires_at <= ?
-         ORDER BY expires_at ASC
-         LIMIT ?`,
+        `SELECT id FROM (
+           SELECT id, created_at FROM shares WHERE expires_at IS NOT NULL AND expires_at <= ?1
+           UNION
+           SELECT id, created_at FROM shares WHERE state = 'uploading' AND created_at <= ?2
+         )
+         ORDER BY created_at ASC
+         LIMIT ?3`,
       )
-      .bind(expiredAt, limit)
+      .bind(expiredAt, abandonedBefore, limit)
       .all<{ id: string }>();
     return result.results.map((row) => row.id);
   }
@@ -107,6 +137,8 @@ function mapShare(row: ShareRow): ShareRecord {
     objectCount: row.object_count,
     chunkCount: row.chunk_count,
     ciphertextBytes: row.ciphertext_bytes,
+    reservedBytes: row.reserved_bytes,
+    reservedChunks: row.reserved_chunks,
     createdAt: row.created_at,
     completedAt: row.completed_at,
     expiresAt: row.expires_at,

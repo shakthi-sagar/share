@@ -64,7 +64,31 @@ The deploy command validates production configuration, builds all assets, perfor
 run, applies pending D1 migrations, uploads assets, and deploys the Worker. The smoke test creates a
 short-lived test share, verifies upload/read authorization and byte equality, then deletes it.
 
-## Expired share sweep
+## Abuse limits
+
+- `CREATE_RATE_LIMITER` allows 10 share creations per minute per client address and
+  `UPLOAD_RATE_LIMITER` 600 upload requests per minute. Both are `ratelimits` bindings in
+  `wrangler.base.jsonc`; their `namespace_id` values must be unique within the Cloudflare account.
+  Limited requests receive `429` with `Retry-After: 60`. Addresses are limiter keys only and are not
+  logged or stored.
+- `SHARE_PUBLIC_MAX_SHARE_BYTES` caps the ciphertext one share may store. `config:sync` passes it to
+  the Worker as `SHARE_MAX_SHARE_BYTES`, and the web app checks it before uploading.
+- Uploads are accepted for `UPLOAD_WINDOW_SECONDS` (24 hours) after a share is created.
+
+## Browser security headers
+
+`apps/web/vite.config.ts` emits `dist/_headers` during the build. Workers Static Assets applies it to
+every page, including the single-page fallback, with a strict Content Security Policy
+(`script-src 'self'`, `worker-src 'self'` for the pdf.js worker, and `connect-src` limited to the
+site plus `SHARE_PUBLIC_API_URL`). `style-src` also allows `'unsafe-inline'`, because Mermaid's
+SVG and the CSS inside a sandboxed HTML preview need inline styles; CSS cannot run script, and its
+ways of sending data out (images, fonts, connections) remain restricted to this origin. The build
+also copies the pdf.js character maps and standard fonts to `/pdfjs/`. Pages also get
+`Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, and related headers. API responses get
+equivalent headers from Hono. The Vite development server does not send them; check them against
+`wrangler dev`, which serves the built assets.
+
+## Expired and abandoned share sweep
 
 Expiry refuses access; it does not free storage. A cron trigger reclaims it.
 
@@ -74,6 +98,8 @@ base rather than read from `.env`.
 
 - The sweep is a `scheduled` export on the Worker, not an HTTP route. Nothing can trigger it with a
   request, and it exposes no counts over HTTP.
+- It also removes shares still uploading 24 hours after creation, found through
+  `shares_uploading_idx`, so an abandoned upload cannot hold storage even without an expiry.
 - It lists expired shares through the `shares_expiry_idx` index, then removes each share's R2
   prefix before its D1 row, using the same `deleteShare` path as `DELETE /v1/shares/:id`.
 - Each share is independent. If object removal fails, the row stays and the next run retries it, so a

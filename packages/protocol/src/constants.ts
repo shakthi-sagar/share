@@ -12,3 +12,6 @@ export const KEY_INFO = {
   readAuthorization: "share/v1/read-authorization",
   filePrefix: "share/v1/file/",
 } as const;
+export const GCM_TAG_BYTES = 16;
+export const MAX_MANIFEST_FILES = 10_000;
+export const MAX_SHARE_CHUNKS = 1_000_000;

@@ -1,7 +1,19 @@
-import { type CreatedShare, createEncryptedShare, type ShareProgress } from "@share/client";
+import {
+  assertShareWithinLimits,
+  type CreatedShare,
+  createEncryptedShare,
+  measureShare,
+  type ShareProgress,
+} from "@share/client";
 import { AlertTriangle, Check, ChevronRight, File, LockKeyhole, X } from "lucide-react";
-import { useEffect, useState } from "react";
-import { API_BASE_URL, DEFAULT_EXPIRY_SECONDS, SHARE_BASE_URL } from "../lib/config";
+import { useEffect, useMemo, useState } from "react";
+import {
+  API_BASE_URL,
+  DEFAULT_EXPIRY_SECONDS,
+  MAX_SHARE_BYTES,
+  SHARE_BASE_URL,
+} from "../lib/config";
+import { describeShareError } from "../lib/errors";
 import { formatBytes } from "../lib/format";
 import { rememberPublishedShare } from "../lib/published-shares";
 import { workspaceFiles } from "../workspace/model";
@@ -25,6 +37,20 @@ export function SharePublisher({
   const [result, setResult] = useState<CreatedShare | null>(null);
   const [error, setError] = useState<string | null>(null);
   const totalSize = files.reduce((total, { entry }) => total + entry.blob.size, 0);
+  // Checked before publishing so an oversized or unpublishable snapshot never starts an upload.
+  const blocker = useMemo(() => {
+    try {
+      const sources = workspaceFiles(workspace).map(({ entry, path }) => ({
+        path,
+        mime: entry.mimeType,
+        size: entry.blob.size,
+      }));
+      assertShareWithinLimits(measureShare(workspace.name, sources), MAX_SHARE_BYTES);
+      return null;
+    } catch (caught) {
+      return describeShareError(caught, "This snapshot cannot be published");
+    }
+  }, [workspace]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent): void => {
@@ -49,17 +75,20 @@ export function SharePublisher({
           stream: () => entry.blob.stream(),
         })),
         expiresInSeconds: expiry,
+        maxShareBytes: MAX_SHARE_BYTES,
         onProgress: setProgress,
       });
       rememberPublishedShare({
         id: created.id,
         deleteToken: created.deleteToken,
         expiresAt: created.expiresAt,
+        name: workspace.name,
+        fileCount: files.length,
       });
       setResult(created);
       setState("success");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "The snapshot could not be published");
+      setError(describeShareError(caught, "The snapshot could not be published"));
       setState("ready");
     }
   }
@@ -111,7 +140,10 @@ export function SharePublisher({
               </div>
               <div>
                 <dt>Total size</dt>
-                <dd>{formatBytes(totalSize)}</dd>
+                <dd>
+                  {formatBytes(totalSize)}
+                  <small> of {formatBytes(MAX_SHARE_BYTES)} max</small>
+                </dd>
               </div>
               <div>
                 <dt>Encryption</dt>
@@ -153,9 +185,14 @@ export function SharePublisher({
             </label>
 
             {state === "uploading" ? <UploadStatus progress={progress} files={files} /> : null}
+            {blocker ? (
+              <p className="inline-error" role="alert">
+                {blocker}
+              </p>
+            ) : null}
             {error ? (
               <p className="inline-error" role="alert">
-                {error}. Your local workspace is unchanged; you can try again.
+                {error} Your local workspace is unchanged.
               </p>
             ) : null}
             <div className="dialog-actions publish-actions">
@@ -170,7 +207,7 @@ export function SharePublisher({
               <button
                 className="button button-primary"
                 type="button"
-                disabled={files.length === 0 || state === "uploading"}
+                disabled={files.length === 0 || blocker !== null || state === "uploading"}
                 onClick={() => void publish()}
               >
                 {state === "uploading" ? "Publishing…" : "Encrypt and publish"}
@@ -295,8 +332,11 @@ function PublishSuccess({
         <CopyButton value={result.urlWithKey} label="Copy full link" intent="primary" />
       </div>
       <p className="share-secret-note">
-        <AlertTriangle size={14} aria-hidden="true" /> Anyone with the full link can decrypt the
-        snapshot. Send it through a trusted channel.
+        <AlertTriangle size={14} aria-hidden="true" />
+        <span>
+          Anyone with the full link can decrypt the snapshot, so send it through a trusted channel.
+          Copy it now: the key is not stored anywhere and cannot be recovered.
+        </span>
       </p>
 
       <div className="result-actions result-primary-actions">
@@ -326,7 +366,6 @@ function PublishSuccess({
         </div>
       </details>
 
-      <p className="loss-warning">Save the full link or key now. The key cannot be recovered.</p>
       <p className="publish-revoke-note">
         Published shares are listed on the home page, where you can revoke this snapshot before it
         expires.

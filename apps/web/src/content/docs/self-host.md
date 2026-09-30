@@ -31,6 +31,7 @@ Edit only the root `.env`. It is ignored by Git, and `.env.example` is the commi
 - set `SHARE_ALLOWED_ORIGINS` to the exact browser origins
 - set `SHARE_CUSTOM_DOMAIN` when the Worker should own a hostname in a Cloudflare-managed zone
 - fill in `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_D1_ID`, `CLOUDFLARE_R2_BUCKET`, and resource names
+- set `SHARE_PUBLIC_MAX_SHARE_BYTES` to the largest encrypted share you are willing to store
 
 Only `SHARE_PUBLIC_` variables reach the browser bundle. Never put a secret in one of them.
 
@@ -71,12 +72,31 @@ The smoke test creates a short-lived share, checks upload and read authorization
 then deletes the share. Finally, open the deployed web app and create, open, preview, and download a
 share in a browser.
 
-## Expired shares
+## Expired and abandoned shares
 
 Expiry alone only refuses access; the sweep is what frees storage. The Worker includes an hourly cron
 trigger that deletes the encrypted objects and the database row of every share whose expiry has
-passed. The schedule lives in `apps/api-cloudflare/wrangler.base.jsonc` and needs no configuration.
+passed, and of every upload that did not complete within 24 hours, including uploads with no expiry.
+The schedule lives in `apps/api-cloudflare/wrangler.base.jsonc` and needs no configuration.
 The sweep runs on a platform schedule, has no public endpoint, and reports only counts in its logs.
+
+## Abuse limits
+
+Creating a share needs no account, so the Worker limits what one client can store:
+
+- Share creation is limited to 10 per minute per client address, and upload requests to 600 per
+  minute, through Workers rate limiting bindings declared in `wrangler.base.jsonc`. Their
+  `namespace_id` values must be unique within your Cloudflare account.
+- Each share may store at most `SHARE_PUBLIC_MAX_SHARE_BYTES` of ciphertext and 1,000,000 chunks.
+  The API counts every accepted upload body before storing it and refuses the rest with `413`.
+- Uploads are accepted only during the first 24 hours of a share's life.
+
+## Browser security headers
+
+The build writes a `_headers` file that Workers Static Assets serves with every page. Its Content
+Security Policy allows only same-origin scripts and styles and network access only to the site and
+the configured API origin. The key sits in the page's URL fragment, so an injected script would be
+key theft; keep the policy strict when you change the web app.
 
 ## Notes
 

@@ -18,9 +18,14 @@ separately derived read credential, and requires that credential before returnin
 - Separate manifest, file, read authorization, upload, and deletion credentials
 - Expiring shares
 - Revoking a published share from the browser that published it
-- Hourly sweep that deletes expired shares from storage
+- Hourly sweep that deletes expired shares and abandoned uploads from storage
+- Per-address rate limits and a configurable per-share size limit
+- Strict Content Security Policy on every page
 - Lazy file download and local decryption
-- Markdown, text, code, and image previews
+- Previews for Markdown (with Mermaid diagrams and a split source view), code with syntax
+  highlighting, CSV and TSV tables, JSON, Jupyter notebooks, SVG, sandboxed HTML, PDF, images,
+  audio, video, and fonts; other files download
+- Split edit and preview for Markdown, SVG, and HTML in a local workspace
 - Collapsible nested folder tree
 - One Cloudflare Worker serving the React app and API
 - D1 metadata and private R2 ciphertext storage

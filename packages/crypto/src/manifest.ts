@@ -1,5 +1,6 @@
 import {
   GCM_IV_BYTES,
+  GCM_TAG_BYTES,
   ProtocolError,
   type ShareManifest,
   shareManifestSchema,
@@ -27,6 +28,12 @@ export async function encryptManifest(
   envelope.set(iv, 0);
   envelope.set(new Uint8Array(ciphertext), GCM_IV_BYTES);
   return envelope;
+}
+
+/** Size of the envelope `encryptManifest` produces for this manifest, without encrypting it. */
+export function encryptedManifestBytes(manifest: ShareManifest): number {
+  const validated = shareManifestSchema.parse(manifest);
+  return GCM_IV_BYTES + utf8(JSON.stringify(validated)).byteLength + GCM_TAG_BYTES;
 }
 
 export async function decryptManifest(

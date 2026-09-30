@@ -1,7 +1,15 @@
 import { hashCredential } from "@share/crypto";
 import { beforeEach, describe, expect, it } from "vitest";
-import { completeShare, createShare, deleteShare, purgeExpiredShares, sharePrefix } from "../src";
-import { type CallLog, MemoryBlobStore, MemoryMetadataStore } from "./memory-stores";
+import {
+  completeShare,
+  createShare,
+  deleteShare,
+  purgeExpiredShares,
+  reserveUpload,
+  sharePrefix,
+  UPLOAD_WINDOW_SECONDS,
+} from "../src";
+import { type CallLog, MemoryBlobStore, MemoryMetadataStore } from "../src/testing";
 
 const published = new Date("2026-09-25T00:00:00.000Z");
 const afterExpiry = new Date("2026-09-25T00:02:00.000Z");
@@ -20,6 +28,7 @@ describe("share storage lifecycle", () => {
   /** Creates a ready share with one stored object and returns its generated id. */
   async function publish(expiresInSeconds: number | null): Promise<string> {
     const created = await createShare(metadata, { expiresInSeconds }, published);
+    await reserveUpload(metadata, created.id, { bytes: 12, chunks: 1 }, 1024);
     await completeShare(metadata, created.id, {
       accessCredentialHash: await hashCredential("a".repeat(43)),
       objectCount: 1,
@@ -120,5 +129,28 @@ describe("share storage lifecycle", () => {
     const created = await createShare(metadata, { expiresInSeconds: 60 }, published);
     await deleteShare(metadata, blobs, created.id, created.deleteToken);
     expect(metadata.records.size).toBe(0);
+  });
+
+  it("removes uploads abandoned past the upload window, even without expiry", async () => {
+    const ready = await publish(null);
+    const abandoned = await createShare(metadata, { expiresInSeconds: null }, published);
+    await blobs.put(
+      `${sharePrefix(abandoned.id)}objects/FileObject_123456/0000000000`,
+      new ArrayBuffer(8),
+    );
+    const recent = await createShare(
+      metadata,
+      { expiresInSeconds: null },
+      new Date(published.getTime() + 60_000),
+    );
+    const windowClosed = new Date(published.getTime() + UPLOAD_WINDOW_SECONDS * 1000);
+
+    const early = await purgeExpiredShares(metadata, blobs, new Date(windowClosed.getTime() - 1));
+    expect(early.scanned).toBe(0);
+
+    const result = await purgeExpiredShares(metadata, blobs, windowClosed);
+    expect(result).toEqual({ scanned: 1, removed: 1, failed: 0, truncated: false });
+    expect([...metadata.records.keys()].sort()).toEqual([ready, recent.id].sort());
+    expect([...blobs.objects.keys()]).toEqual([`${sharePrefix(ready)}manifest`]);
   });
 });

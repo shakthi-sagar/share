@@ -1,3 +1,4 @@
+import { isPublishablePath, removeInvisibleFormatting } from "@share/protocol";
 import type {
   Workspace,
   WorkspaceEntry,
@@ -317,7 +318,8 @@ export function mimeForName(name: string, fallback = "application/octet-stream")
 }
 
 function normalizeWorkspaceName(name: string): string {
-  return name.trim() || "Untitled";
+  // The workspace name becomes the published share name, so it follows the same display rule.
+  return removeInvisibleFormatting(name).trim().slice(0, 255) || "Untitled";
 }
 
 function normalizeEntryName(name: string): string {
@@ -325,11 +327,22 @@ function normalizeEntryName(name: string): string {
   if (!normalized || normalized === "." || normalized === ".." || /[/\\]/u.test(normalized)) {
     throw new Error("Names cannot be empty or contain slashes");
   }
+  if (!isPublishablePath(normalized)) {
+    throw new Error("Names cannot contain control or text-direction characters");
+  }
   return normalized;
 }
 
+/**
+ * Splits an imported path into entry names. Invisible formatting characters are removed rather than
+ * refused, so a folder from disk still imports and can never display as a different name.
+ */
 function safeSegments(path: string): string[] {
-  const segments = path.replaceAll("\\", "/").split("/").filter(Boolean);
+  const segments = removeInvisibleFormatting(path)
+    .replaceAll("\\", "/")
+    .split("/")
+    .map((segment) => segment.trim())
+    .filter(Boolean);
   if (segments.length === 0 || segments.some((segment) => segment === "." || segment === "..")) {
     throw new Error(`Unsafe file path: ${path}`);
   }

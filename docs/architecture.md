@@ -96,7 +96,9 @@ It does not depend on Cloudflare APIs.
 
 `apps/api-cloudflare` connects the server ports to:
 
-- Hono HTTP routes
+- Hono HTTP routes, built by `createApi` in `src/app.ts` from injected stores, limits, and a rate
+  limiter so the routes are tested end to end against the in-memory stores in `@share/server/testing`
+- Workers rate limiting bindings for share creation and uploads
 - D1 metadata storage
 - private R2 blob storage
 - configured CORS policy
@@ -111,6 +113,8 @@ It does not depend on Cloudflare APIs.
 - local file organization and text editing
 - image and unsupported-file preview states
 - conversion from the current workspace to `@share/client` source files
+- file previews in `src/preview`, shared by the viewer and the workspace editor, which render
+  decrypted content without ever letting it execute in the page
 
 The workspace store is not imported by the protocol, client, server, or Worker packages.
 
@@ -158,8 +162,10 @@ ciphertext. It does not give the server decryption ability.
 
 D1 stores opaque identifiers, lifecycle state, protocol version, hashed authorization material,
 counts, byte totals, creation/completion timestamps, and optional expiry. It does not store names or
-paths. An hourly cron sweep deletes the objects and the row of every share whose expiry has passed,
-which is what bounds storage growth.
+paths. `reserved_bytes` and `reserved_chunks` count what the API accepted during upload and enforce
+the per-share limit. An hourly cron sweep deletes the objects and the row of every share whose
+expiry has passed, and of every upload still incomplete 24 hours after creation, which is what
+bounds storage growth.
 
 ### R2
 

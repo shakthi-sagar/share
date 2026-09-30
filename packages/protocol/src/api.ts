@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PROTOCOL_VERSION } from "./constants";
+import { MAX_MANIFEST_FILES, MAX_SHARE_CHUNKS, PROTOCOL_VERSION } from "./constants";
 
 export const shareIdSchema = z.string().regex(/^[A-Za-z0-9_-]{22}$/);
 export const tokenSchema = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
@@ -19,8 +19,8 @@ export const createShareResponseSchema = z.object({
 
 export const completeShareRequestSchema = z.object({
   accessCredentialHash: credentialHashSchema,
-  objectCount: z.number().int().nonnegative().max(10_000),
-  chunkCount: z.number().int().nonnegative().max(1_000_000),
+  objectCount: z.number().int().nonnegative().max(MAX_MANIFEST_FILES),
+  chunkCount: z.number().int().nonnegative().max(MAX_SHARE_CHUNKS),
   ciphertextBytes: z.number().int().nonnegative().safe(),
 });
 

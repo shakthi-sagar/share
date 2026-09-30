@@ -1,5 +1,16 @@
+/**
+ * In-memory store implementations for tests of the server rules and of adapters built on them.
+ * Not for production use: nothing here persists.
+ */
 import type { CompleteShareRequest } from "@share/protocol";
-import type { BlobStore, MetadataStore, ShareRecord, StoredBlob } from "../src";
+import type {
+  BlobStore,
+  MetadataStore,
+  ShareRecord,
+  StoredBlob,
+  UploadLimits,
+  UploadReservation,
+} from "./types";
 
 /** Shared call log so tests can assert cross-store ordering. */
 export type CallLog = string[];
@@ -31,15 +42,41 @@ export class MemoryMetadataStore implements MetadataStore {
     return true;
   }
 
+  async reserve(
+    id: string,
+    reservation: UploadReservation,
+    limits: UploadLimits,
+  ): Promise<boolean> {
+    const record = this.records.get(id);
+    if (
+      record?.state !== "uploading" ||
+      record.reservedBytes + reservation.bytes > limits.maxBytes ||
+      record.reservedChunks + reservation.chunks > limits.maxChunks
+    ) {
+      return false;
+    }
+    record.reservedBytes += reservation.bytes;
+    record.reservedChunks += reservation.chunks;
+    return true;
+  }
+
   async remove(id: string): Promise<boolean> {
     this.calls?.push(`metadata:remove:${id}`);
     return this.records.delete(id);
   }
 
-  async listExpired(expiredAt: string, limit: number): Promise<string[]> {
+  async listPurgeable(
+    expiredAt: string,
+    abandonedBefore: string,
+    limit: number,
+  ): Promise<string[]> {
     return [...this.records.values()]
-      .filter((record) => record.expiresAt !== null && record.expiresAt <= expiredAt)
-      .sort((left, right) => (left.expiresAt ?? "").localeCompare(right.expiresAt ?? ""))
+      .filter(
+        (record) =>
+          (record.expiresAt !== null && record.expiresAt <= expiredAt) ||
+          (record.state === "uploading" && record.createdAt <= abandonedBefore),
+      )
+      .sort((left, right) => left.createdAt.localeCompare(right.createdAt))
       .slice(0, limit)
       .map((record) => record.id);
   }
@@ -53,8 +90,8 @@ export class MemoryBlobStore implements BlobStore {
 
   constructor(private readonly calls?: CallLog) {}
 
-  async put(key: string, body: ArrayBuffer): Promise<void> {
-    this.objects.set(key, new Uint8Array(body));
+  async put(key: string, body: ArrayBuffer | ReadableStream<Uint8Array>): Promise<void> {
+    this.objects.set(key, new Uint8Array(await new Response(body).arrayBuffer()));
   }
 
   async exists(key: string): Promise<boolean> {
