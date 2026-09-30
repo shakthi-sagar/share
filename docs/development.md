@@ -46,7 +46,8 @@ development `.env.local` would leak `http://localhost` URLs into the production 
 - Keep local development values in `.env.development`, which Vite loads only in development mode.
 - Do not create `.env.local` or `.env.production.local` in this repository. `pnpm config:sync
   --production` and `pnpm deploy:cloudflare` fail if either file exists.
-- `pnpm dev:local` reads `.env.development` for config sync and the Vite dev server.
+- `pnpm dev:local` reads `.env.development` for config sync, the Vite dev server, and the asset
+  build that `wrangler dev` serves on port 8787, so both local origins talk to the local API.
 
 ## Common commands
 
