@@ -120,3 +120,30 @@ The deployed web app serves this project's user documentation at `/docs`, includ
 ## License
 
 [MIT](LICENSE)
+
+## Command-line sharing
+
+The `share` CLI publishes encrypted files and directories using the same client protocol as the
+website. It defaults to a **24-hour expiry**, caps new CLI shares at **7 days**, and never creates
+non-expiring shares. Share URLs include a fragment secret; do not log them in public CI.
+
+```sh
+pnpm install
+pnpm --filter @share/cli build
+node packages/cli/dist/cli.mjs put screenshot.png --expires 1d
+node packages/cli/dist/cli.mjs put ./screenshots --name "Scene renders"
+node packages/cli/dist/cli.mjs inspect 'https://share.shadster.dev/s/<id>#k=<key>'
+node packages/cli/dist/cli.mjs revoke <id>
+```
+
+On Linux, symlink the built script to `~/.local/bin/share` to make it available globally.
+CLI delete receipts live at `~/.local/share/receipts` (private file permissions), so the original
+machine can revoke links early. Publishing a new share does not modify a previous immutable snapshot.
+
+### Retention
+
+The API runs an hourly expiry sweep at minute 17 UTC. Expired links lose read access immediately;
+background deletion normally occurs on the next hourly sweep. Abandoned uploads are purged after
+24 hours. A sweep removes at most 2,000 shares, retrying failures on subsequent runs. Existing
+legacy non-expiring shares are **not** automatically deleted; revoke them with their original
+browser-held deletion credentials. The web publisher now only offers expiring links.

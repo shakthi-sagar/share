@@ -31,7 +31,7 @@ export function SharePublisher({
   onClose: () => void;
 }): React.JSX.Element {
   const files = workspaceFiles(workspace);
-  const [expiry, setExpiry] = useState<number | null>(DEFAULT_EXPIRY_SECONDS);
+  const [expiry, setExpiry] = useState<number>(DEFAULT_EXPIRY_SECONDS);
   const [state, setState] = useState<PublishState>("ready");
   const [progress, setProgress] = useState<ShareProgress | null>(null);
   const [result, setResult] = useState<CreatedShare | null>(null);
@@ -170,17 +170,14 @@ export function SharePublisher({
             <label className="field-label">
               <span>Link expires</span>
               <select
-                value={expiry ?? "never"}
+                value={expiry}
                 disabled={state === "uploading"}
-                onChange={(event) =>
-                  setExpiry(event.target.value === "never" ? null : Number(event.target.value))
-                }
+                onChange={(event) => setExpiry(Number(event.target.value))}
               >
                 <option value={3600}>In 1 hour</option>
                 <option value={86400}>In 1 day</option>
                 <option value={259200}>In 3 days</option>
                 <option value={604800}>In 7 days</option>
-                <option value="never">Never</option>
               </select>
             </label>
 

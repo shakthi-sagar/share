@@ -1,0 +1,22 @@
+{
+  "name": "@share/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "share": "dist/cli.mjs"
+  },
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/cli.mjs --banner:js='#!/usr/bin/env node'",
+    "check": "tsc --noEmit -p tsconfig.json",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@share/client": "workspace:*",
+    "@share/protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "esbuild": "^0.25.0"
+  }
+}
