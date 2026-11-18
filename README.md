@@ -29,7 +29,10 @@ separately derived read credential, and requires that credential before returnin
 - Multi-image gallery with locally decrypted, on-demand thumbnails, pagination, and full-image navigation
 - Fullscreen image inspection with zoom, pan, reset and keyboard controls
 - Search filenames and nested paths in the share viewer without downloading additional files
-- Read-only text previews for DOCX, XLSX, and PPTX (complex formatting remains download-only)
+- Read-only DOCX and PPTX layout previews, plus XLSX sheet navigation and row filtering
+- ZIP directory browsing, HEIC and TIFF images, and OBJ, STL, and embedded glTF/GLB previews
+- File breadcrumbs, filters, sort controls, desktop sidebar resizing, and tab-local gallery notes
+- In-memory decrypted cache, range-based PDF and media previews, and streaming downloads where supported
 - Collapsible nested folder tree
 - One Cloudflare Worker serving the React app and API
 - D1 metadata and private R2 ciphertext storage
@@ -39,7 +42,7 @@ separately derived read credential, and requires that credential before returnin
 
 - Node.js 22+
 - pnpm 10+
-- A Cloudflare account for deployment
+- A Cloudflare account for the managed deployment, or Docker Compose for self-hosting
 
 ## Configuration
 
@@ -103,7 +106,7 @@ Local workspaces are not encrypted at rest. Anyone with access to this browser p
 storage may be able to read them. End-to-end encryption is applied to the published snapshot.
 
 The hosted web application remains part of the trust boundary because it delivers the encryption
-client. Independently built CLI and MCP clients will use the same documented wire protocol.
+client. The CLI and its stdio MCP server use the same documented wire protocol.
 
 See [the protocol documentation](docs/protocol.md) for the key schedule and ciphertext format.
 
@@ -142,11 +145,24 @@ node packages/cli/dist/cli.mjs ls --json
 node packages/cli/dist/cli.mjs status --json
 ```
 
-On Linux, symlink the built script to `~/.local/bin/share` to make it available globally.
+Install or update the CLI with `pnpm install:cli`. It installs the executable under `~/.local/bin` by default. Set `SHARE_CLI_BIN_DIR` to choose a different location.
 Use `share put screenshot.png --json` for agent-friendly output, `share ls --json` to
 inspect locally recorded share IDs and expirations, and `share status` for a service health check.
 CLI delete receipts live at `~/.local/share/receipts` (private file permissions), so the original
 machine can revoke links early. Publishing a new share does not modify a previous immutable snapshot.
+
+### Agent tools
+
+Start the stdio MCP server with `share mcp`. It exposes service status and share inspection.
+Set `SHARE_MCP_ROOT` to the directory an agent may publish from to enable `share_publish`. The
+server checks that requested local paths resolve inside the configured root. Share URLs carry
+their decryption key and should be handled as secrets.
+
+### Self-hosting
+
+Run `docker compose up --build -d` and open `http://localhost:8787`. This deployment uses
+SQLite for metadata and a private S3-compatible SeaweedFS bucket for ciphertext. See
+[deployment](docs/deployment.md) for storage credentials, origin settings, and retention.
 
 ### Retention
 
@@ -154,4 +170,4 @@ The API runs an hourly expiry sweep at minute 17 UTC. Expired links lose read ac
 background deletion normally occurs on the next hourly sweep. Abandoned uploads are purged after
 24 hours. A sweep removes at most 2,000 shares, retrying failures on subsequent runs. Existing
 legacy non-expiring shares are **not** automatically deleted; revoke them with their original
-browser-held deletion credentials. The web publisher now only offers expiring links.
+browser-held deletion credentials. New shares default to 24 hours and are capped at seven days by the API.

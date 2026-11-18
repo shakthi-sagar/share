@@ -1,6 +1,23 @@
 # Deployment guide
 
-## Production topology
+## Self-hosted Node deployment
+
+```sh
+docker compose up --build -d
+curl -fsS http://localhost:8787/health
+```
+
+The Compose stack binds the web service to loopback. Its named volumes hold SQLite metadata
+and private S3-compatible ciphertext. Configure `SHARE_SELF_HOST_ORIGIN` and `SHARE_SELF_HOST_PORT`
+together for a different port. For public access, use an HTTPS reverse proxy and build with the
+external HTTPS origin. Set private `SHARE_STORAGE_ACCESS_KEY` and `SHARE_STORAGE_SECRET_KEY` values
+before exposing the service.
+
+To use an existing bucket, configure `SHARE_S3_BUCKET`, optional `SHARE_S3_ENDPOINT`,
+`AWS_REGION`, and credentials through the AWS SDK credential chain. Store the SQLite database on
+a persistent volume. The Node deployment runs an expiry sweep at startup and hourly thereafter.
+
+## Cloudflare production topology
 
 One Cloudflare Worker deploys:
 
@@ -26,7 +43,7 @@ For production:
 `scripts/config.mjs` rejects placeholder D1 IDs and non-HTTPS public URLs in production. It combines
 the environment values with `apps/api-cloudflare/wrangler.base.jsonc` and writes the ignored
 `wrangler.generated.jsonc`. The hourly expired-share sweep is declared in the base file, so it is
-present in every environment without configuration.
+present in every Cloudflare environment without configuration.
 
 ## Provisioning a new environment
 
@@ -79,8 +96,7 @@ short-lived test share, verifies upload/read authorization and byte equality, th
 
 `apps/web/vite.config.ts` emits `dist/_headers` during the build. Workers Static Assets applies it to
 every page, including the single-page fallback, with a strict Content Security Policy
-(`script-src 'self'`, `worker-src 'self'` for the pdf.js worker, and `connect-src` limited to the
-site plus `SHARE_PUBLIC_API_URL`). `style-src` also allows `'unsafe-inline'`, because Mermaid's
+(`script-src 'self' 'wasm-unsafe-eval'` for the local HEIC codec, `worker-src 'self'`, and network access limited to the site plus `SHARE_PUBLIC_API_URL`). Embedded model data and fonts may use browser-local URLs. `style-src` also allows `'unsafe-inline'`, because Mermaid's
 SVG and the CSS inside a sandboxed HTML preview need inline styles; CSS cannot run script, and its
 ways of sending data out (images, fonts, connections) remain restricted to this origin. The build
 also copies the pdf.js character maps and standard fonts to `/pdfjs/`. Pages also get
@@ -106,19 +122,17 @@ base rather than read from `.env`.
   storage failure never orphans ciphertext behind a deleted record.
 - A run lists at most `EXPIRED_SWEEP_LIMIT` shares in batches of `EXPIRED_BATCH_SIZE`. A large
   backlog drains across several runs; the log line reports `truncated` when that happens.
-- The log line contains counts and duration only. Share ids, object keys, and credentials are never
-  logged.
+- The log line records duration, removals, failures, backlog, legacy-share counts and aggregate ciphertext accounting. Reserved bytes can overcount storage after retries. The numbers come from metadata, so use provider metrics for billed R2 storage. Share IDs, object keys, and credentials stay out of these logs.
 
 Run it locally against local storage with a test-scheduled server:
 
 ```sh
 pnpm --filter @share/api-cloudflare exec wrangler dev --config wrangler.generated.jsonc \
   --port 8787 --ip 127.0.0.1 --test-scheduled
-curl -X POST "http://127.0.0.1:8787/cdn-cgi/local/explorer/api/local/scheduled?worker=encrypted-share" \
-  -H 'Content-Type: application/json' -d '{"cron":"17 * * * *"}'
+curl -fsS 'http://127.0.0.1:8787/cdn-cgi/local/scheduled?cron=17+*+*+*+*'
 ```
 
-The response is `{"success":true,...}` and the server log reports `scanned`, `removed`, and `failed`.
+The response is `ok`. The server log reports `scanned`, `removed`, and `failed`.
 
 ## Custom domains and workers.dev
 

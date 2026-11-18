@@ -1,8 +1,21 @@
 # Self-hosting
 
-`share` is a single Cloudflare Worker that serves the web app, the `/v1` API, and the `/health`
-endpoint, backed by a D1 database and a private R2 bucket. Deploying it to your own account takes
-a few minutes.
+You can run Share on your machine with Docker Compose or deploy it on Cloudflare.
+
+## Run with Docker Compose
+
+```sh
+docker compose up --build -d
+curl -fsS http://localhost:8787/health
+```
+
+Open `http://localhost:8787`. One Node.js process serves the site and API, SQLite stores operational metadata, and the included SeaweedFS service stores ciphertext through its S3 interface. Both data stores use named volumes. The default host port binds to loopback. Change both `SHARE_SELF_HOST_ORIGIN` and `SHARE_SELF_HOST_PORT` when using a different local port. For remote access, configure an HTTPS reverse proxy and build with its HTTPS origin. Set private values for `SHARE_STORAGE_ACCESS_KEY` and `SHARE_STORAGE_SECRET_KEY` before exposing the service.
+
+To use your own private S3-compatible bucket, run the same Docker image with `SHARE_S3_BUCKET`, optional `SHARE_S3_ENDPOINT`, `AWS_REGION`, and the AWS SDK credential chain. Give the server permission to get, put, list, and delete encrypted objects in that bucket. Persist the SQLite data directory. The Node service sweeps on startup and hourly while running.
+
+## Deploy on Cloudflare
+
+The Cloudflare Worker serves the web app, the `/v1` API, and `/health`. It uses D1 for metadata and a private R2 bucket for ciphertext.
 
 ## Requirements
 

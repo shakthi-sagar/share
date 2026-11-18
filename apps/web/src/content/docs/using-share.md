@@ -38,8 +38,9 @@ Opening a share URL requires the fragment. Without it the page cannot derive a r
 the API returns the same not-found response it returns for an absent, expired, or unauthorized
 share.
 
-In a share you can browse the folder tree, preview Markdown, text, code, and images, and download a
-whole folder or a single file. Content is fetched and decrypted only when you need it.
+Use the file tree, breadcrumbs, search, filters, and sorting to find an artifact. On desktop you can drag the sidebar edge or focus the separator and use the arrow keys. The gallery lets you compare images, play a slideshow, and place notes on images. Notes last for this tab.
+
+Share previews Markdown, formatted source, JSON, YAML, notebooks, HTML, PDFs, images, audio, video, fonts, ZIP directory listings, spreadsheets, and supported 3D models. Sandbox previews resolve bundled HTML links, responsive images, and local CSS resources. XLSX previews expose sheet selection and filtered rows. DOCX and PPTX show common formatting and layout. Charts, embedded media, and Office-specific formatting may need the original application. Model previews support OBJ, STL, and glTF or GLB with embedded textures and buffers.
 
 ## Local and published data
 
@@ -65,7 +66,6 @@ per unlocked share and drops older entries as it fills. Reload the page or close
 Previously opened files can remain visible in that tab after the share expires or is revoked.
 
 Larger previews start when you choose **Load preview** or **Load player**. PDF previews request
-encrypted chunks as needed, within the PDF preview size limit. The PDF decoder can still allocate a
-document-sized buffer. Browser-compatible audio and video play from streamed chunks when supported.
+encrypted chunks as needed, within the PDF preview size limit. The PDF decoder may still fetch the entire document, depending on its layout, and can allocate a document-sized buffer. Searching PDF text can also fetch more chunks. Browser-compatible audio and video play from streamed chunks when supported.
 On browsers with a save-file picker, large downloads stream directly to the selected destination.
-The standard download in other browsers assembles a temporary copy in memory.
+When the save-file picker is unavailable, Share can hand decrypted chunks to the browser's download manager. If the browser does not support either streaming route, Share uses a temporary in-memory copy.

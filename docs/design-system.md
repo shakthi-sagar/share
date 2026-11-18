@@ -14,11 +14,11 @@ than decoration.
 
 Use:
 
-- a light gray application canvas with white task surfaces
+- a dark graphite application canvas with layered task surfaces
 - compact controls with persistent text labels for unfamiliar actions
 - monospaced type for paths, keys, sizes, and machine-oriented status
 - thin borders and small radii to define work areas
-- a dark neutral primary action and a restrained orange functional indicator
+- a pale neutral primary action and a restrained lime functional indicator
 - plain language that distinguishes a local draft from an immutable published snapshot
 
 Avoid gradients, decorative security imagery, large shadows, oversized hero sections, pill-shaped
@@ -48,7 +48,7 @@ Do not use color alone to communicate state. Pair it with text, an icon, or a st
 
 ### Typography
 
-The interface uses the system sans stack. Use `--mono` for filenames, paths, byte counts, keys,
+The interface uses a bundled Inter variable font with a system fallback. Use `--mono` for filenames, paths, byte counts, keys,
 code, and terse machine status. Keep prose in the sans stack.
 
 The defined size tokens are `--text-xs`, `--text-sm`, `--text-ui`, `--text-body`,
@@ -76,7 +76,7 @@ layout work. Optical adjustments of 1–3px are acceptable for icons, borders, a
 ### Shape, borders, and elevation
 
 - Controls use `--radius-control` (6px).
-- Panels use `--radius-panel` (8px).
+- Panels use `--radius-panel` (10px).
 - Fully round indicators use `--radius-round`.
 - Default structure uses a 1px border.
 - Avoid shadows unless content must visibly float above another interaction layer.
@@ -179,7 +179,7 @@ unknown binaries) fall back to the download state.
 - Each kind has a preview size limit in `PREVIEW_LIMIT_BYTES`. Past it the file is offered for
   download rather than decrypted into memory. Unknown files up to 2 MiB are decrypted and shown as
   text when they look like UTF-8 text.
-- Modern Office OOXML (DOCX, XLSX, PPTX) gets a bounded, read-only text extraction preview.
+- Modern Office OOXML gets a bounded, read-only preview with DOCX and PPTX layouts and an XLSX sheet picker and table.
   This deliberately does not claim layout fidelity; images, slide designs, formulas, and complex
   formatting require the original file. ZIP entry decompression and total text are bounded.
 - A snapshot with multiple images opens a responsive, paginated gallery by default. Gallery

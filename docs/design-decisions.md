@@ -1,66 +1,18 @@
-# Web design reference lock
+# Web design decisions
 
-## Brief
+The workspace is a local drafting surface that publishes immutable encrypted snapshots. Keep the
+active file, expiry, or publication state visible where it affects the user's next action.
 
-Designing an encrypted artifact workspace and sharing flow for developers and AI-assisted workflows
-on the web. The primary user journey is local import or creation, workspace editing, deliberate
-snapshot review, encrypted publishing, and recipient unlock/view. The primary trust question is
-whether plaintext or the master secret reaches the API.
+The graphite redesign takes its overall hierarchy from Linear's near-black product surfaces and
+pale controls. Fonts in Use informed the gallery's neutral framing, where the shared artwork carries
+the color. File-browser references from Weights & Biases informed the breadcrumb and sidebar layout.
 
-## Research
-
-Refero research reviewed Factory.ai, Tailscale, Dropbox, SST, and shadcn visual systems; Skiff Drive,
-Dropbox link settings, and Rork workspace screens; and the Skiff file-import, Shuttle sharing, and
-Dropbox viewing-link flows.
-
-## Reference lock
-
-- Primary direction: Factory.ai's precise technical workbench.
-- Preserve: light gray canvas, white task surfaces, compact UI typography, small radii, thin borders,
-  dense-but-readable application chrome, and functional product visuals rather than decoration.
-- Borrow from Skiff: one obvious import entry, a bounded file queue/list, and an empty-to-populated
-  workspace transition that keeps import available.
-- Borrow from Tailscale: direct trust language and restrained use of a security accent.
-- Borrow from Dropbox: a focused share-settings hierarchy and confirmation in context.
-- Keep from SST: monospaced machine data and technical editorial restraint.
-- Reject: marketing-style hero dominance, equal-weight action-card grids, decorative security art,
-  gradients, large soft SaaS cards, hidden essential actions, and browser prompt/confirm dialogs.
-
-## Token commitments
-
-| Decision | Source | Role |
-| --- | --- | --- |
-| `#f1f1ef` canvas and white task surfaces | Factory.ai and Tailscale | Application background and active work areas |
-| `#181817` primary | Factory.ai | Primary actions, focus, and strongest emphasis |
-| `#d15432` accent | Factory.ai functional orange | Progress, drag-active state, and the publish secrecy callout |
-| System sans plus system mono | Factory.ai/SST and performance craft | UI/readable prose plus paths, sizes, keys, and progress |
-| 6px control radius and 8px panel radius | Factory.ai | Compact controls and bounded work areas |
-| 1px borders and shadows only for overlays | Factory.ai/Tailscale | Structure without ornamental elevation |
-| 120ms and 200ms motion | Existing product system | Feedback and state continuity |
-| 720–760px readable Markdown measure | Existing viewer contract | Long-form artifact reading |
-| Sticky section nav plus reading column for `/docs` | Refero documentation-screen patterns | Page navigation beside a single reading measure |
-| Monochrome functional icons in the header and footer | Refero monochrome developer-tool styles | Destination recognition, never decoration |
-
-## UX commitments
-
-- Home leads with one workspace-start surface: drop files, choose files, choose a folder, or start
-  empty. Recent workspaces are a file-oriented table, not cards.
-- Local draft status remains visible in the workspace header. Publishing is always labeled as an
-  immutable snapshot.
-- Create, rename, and delete use product dialogs with contextual consequences and recoverable
-  validation errors.
-- Publishing is review → progress → result. The result prioritizes the full secret link and places
-  split link/key controls behind an advanced disclosure.
-- A published share stays live until it expires unless the publisher revokes it from the home page.
-  Revocation is local to the browser that published it, because the delete token is issued once and
-  stored there.
-- Recipient viewing keeps artifact identity in the reading pane and navigation in the file tree.
-- Selection uses a neutral tint and text color. Accent orange is not a selection color, in either
-  file tree.
-- Documentation lives in the app at `/docs`, and self-hosting is a documentation page rather than a
-  separate surface. The header links straight to `Docs`, `Self-host`, and the repository.
-- Moving between documentation pages is an in-app navigation, not a document reload, and the URL
-  always reflects the page on screen.
-- The footer repeats those destinations and states the encryption boundary in one sentence. It adds
-  no marketing content.
-- No visual or UX language may imply the API can read plaintext or recover the master secret.
+- Use graphite layers, thin borders, and compact controls around artifacts. A pale primary action
+  marks the next step and a lime accent conveys encryption, progress, or an active drop target.
+- Use bundled Inter for interface text and monospace for paths, byte counts, and CLI commands.
+- Home pairs a short introduction with an import surface, followed by local workspaces and published
+  snapshots. The CLI command appears as copyable text.
+- Keep file navigation and filters beside the preview at desktop widths. In a narrow viewport,
+  open the tree as a drawer. Make the desktop divider operable with a pointer and the keyboard.
+- Keep annotations in the tab. Published artifacts stay immutable and the service receives
+  neither a decryption key nor file contents in plaintext.
