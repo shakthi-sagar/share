@@ -1,4 +1,4 @@
-# share documentation
+# Documentation
 
 `share` is an end-to-end encrypted artifact sharing service. You organize files in a workspace
 that lives only in this browser, then publish an immutable encrypted snapshot and send a single
@@ -37,8 +37,11 @@ success and forgets the local record.
 The server never sees the delete credential, only its SHA-256 hash, and the app never displays,
 copies, or logs it.
 
-## Where to go next
+## Explore the guides
 
 - [Using share](/docs/using-share) — workspaces, publishing, and opening a link.
+- [File previews](/docs/previews) — images, PDFs, Office files, ZIP, 3D and HTML bundles.
+- [CLI and agents](/docs/cli) — terminal publishing and MCP.
+- [Troubleshooting](/docs/troubleshooting) — solve common problems.
 - [Security model](/docs/security) — the trust boundary and the key schedule.
-- [Self-hosting](/docs/self-host) — run the API and web app on your own Cloudflare account.
+- [Self-hosting](/docs/self-host) — run Share using Docker Compose or Cloudflare.

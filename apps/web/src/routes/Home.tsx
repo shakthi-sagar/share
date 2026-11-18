@@ -2,11 +2,14 @@ import { ApiError, deleteEncryptedShare } from "@share/client";
 import { displayPath } from "@share/protocol";
 import {
   ArrowRight,
+  Clock3,
   Copy,
+  Eye,
   FilePlus2,
   FileUp,
   FolderInput,
   FolderOpen,
+  LockKeyhole,
   Pencil,
   ShieldCheck,
   Terminal,
@@ -14,6 +17,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActionDialog } from "../components/ActionDialog";
+import { AppLink } from "../components/AppLink";
 import { CopyButton } from "../components/CopyButton";
 import { API_BASE_URL } from "../lib/config";
 import { describeShareError } from "../lib/errors";
@@ -219,6 +223,54 @@ export function Home(): React.JSX.Element {
         <code>share put ./folder --expires 1d</code>
         <CopyButton value="share put ./folder --expires 1d" label="Copy command" />
       </div>
+
+      <section className="home-workflow" aria-labelledby="home-workflow-heading">
+        <div className="home-workflow-heading">
+          <span className="eyebrow">One link. Every artifact.</span>
+          <h2 id="home-workflow-heading">From files to a private review.</h2>
+          <p>Keep the workflow simple, whether you use the browser or a terminal.</p>
+        </div>
+        <div className="home-workflow-steps">
+          <div className="home-workflow-step">
+            <span className="home-workflow-index">01</span>
+            <div className="home-workflow-icon">
+              <FolderOpen size={21} aria-hidden="true" />
+            </div>
+            <h3>Gather</h3>
+            <p>Drop a folder with images, HTML, documents, or code. Paths stay intact.</p>
+          </div>
+          <div className="home-workflow-step">
+            <span className="home-workflow-index">02</span>
+            <div className="home-workflow-icon">
+              <LockKeyhole size={21} aria-hidden="true" />
+            </div>
+            <h3>Encrypt</h3>
+            <p>Your browser encrypts everything before uploading. The key stays in the link.</p>
+          </div>
+          <div className="home-workflow-step">
+            <span className="home-workflow-index">03</span>
+            <div className="home-workflow-icon">
+              <Eye size={21} aria-hidden="true" />
+            </div>
+            <h3>Review</h3>
+            <p>Open one link to view, compare, inspect, and navigate files.</p>
+          </div>
+          <div className="home-workflow-step">
+            <span className="home-workflow-index">04</span>
+            <div className="home-workflow-icon">
+              <Clock3 size={21} aria-hidden="true" />
+            </div>
+            <h3>Expire</h3>
+            <p>Access ends automatically. Encrypted storage is swept after expiry.</p>
+          </div>
+        </div>
+        <div className="home-workflow-footer">
+          <span>Images · PDF · HTML · Office · Code · Video · 3D</span>
+          <AppLink href="/docs/previews">
+            See supported previews <ArrowRight size={15} aria-hidden="true" />
+          </AppLink>
+        </div>
+      </section>
 
       <section className="recent-workspaces" aria-labelledby="recent-heading">
         <div className="section-heading workspace-library-heading">

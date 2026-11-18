@@ -36,7 +36,7 @@ separately derived read credential, and requires that credential before returnin
 - Collapsible nested folder tree
 - One Cloudflare Worker serving the React app and API
 - D1 metadata and private R2 ciphertext storage
-- In-app documentation at `/docs`, including a self-hosting guide
+- In-app searchable documentation at `/docs`, including visual previews, CLI/MCP, security, troubleshooting and self-hosting guides
 
 ## Requirements
 

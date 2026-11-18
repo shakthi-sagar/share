@@ -7,7 +7,7 @@ credential derived separately from the encryption keys, so the API cannot derive
 encryption key from what it stores.
 
 The web app is code delivered by the service, so its integrity remains part of the web threat model.
-Independent clients — a CLI or an MCP server — use the same documented wire protocol.
+The CLI and its local stdio MCP server use the same documented wire protocol.
 
 ## Key schedule
 
@@ -46,7 +46,7 @@ version, share ID, object ID, index, and expected plaintext length.
   could read the key from the URL fragment. Only this origin's scripts run; nothing loads from
   another origin except the configured API.
 - Previews never run content from a share. SVG files and Mermaid diagrams are shown as images, which
-  cannot execute script. HTML renders in an iframe sandboxed with no permissions. PDFs are drawn by
+  cannot execute script. HTML renders in a tightly restricted iframe with a document Content Security Policy. Local asset rendering can require same-origin access, but scripting and external connections remain disabled. PDFs are drawn by
   pdf.js onto canvases without their scripts, forms, or links. Media are given a type chosen by the
   app, never by the sender, so a file cannot make the browser treat it as a page.
 - The API rate limits share creation and uploads and caps the ciphertext one share can store.

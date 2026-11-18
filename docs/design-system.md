@@ -272,8 +272,9 @@ Internal destinations route in the app through `AppLink`: a modified click, a no
 an external href keeps the browser default, and every in-app navigation updates the URL, restores
 the matching scroll position, and honors back and forward.
 
-The documentation route at `/docs` uses a two-column layout: a sticky section nav and a reading
-article on the 720–760px Markdown measure. The current page is marked with `aria-current` and the
+The documentation route at `/docs` uses a three-column desktop layout: a sticky searchable section nav, a reading
+article on the 720–850px Markdown measure, and an article outline. The topic search is client-side and renders a useful empty state. Code samples support a one-click copy action.
+The current page is marked with `aria-current` and the
 tinted selected state, and every page ends with previous/next navigation. An unknown documentation
 path shows an in-app not-found state that links back to the overview rather than a bare error.
 

@@ -1,6 +1,9 @@
+import cli from "../content/docs/cli.md?raw";
 import overview from "../content/docs/overview.md?raw";
+import previews from "../content/docs/previews.md?raw";
 import security from "../content/docs/security.md?raw";
 import selfHost from "../content/docs/self-host.md?raw";
+import troubleshooting from "../content/docs/troubleshooting.md?raw";
 import usingShare from "../content/docs/using-share.md?raw";
 
 export type DocsPage = {
@@ -25,6 +28,24 @@ const pages: readonly DocsPage[] = [
     content: usingShare,
   },
   {
+    slug: "previews",
+    title: "File previews",
+    summary: "Supported file types, HTML bundles and large file behavior.",
+    content: previews,
+  },
+  {
+    slug: "cli",
+    title: "CLI and agents",
+    summary: "Install the CLI, publish folders and connect local MCP clients.",
+    content: cli,
+  },
+  {
+    slug: "troubleshooting",
+    title: "Troubleshooting",
+    summary: "Fix missing files, broken previews, playback and downloads.",
+    content: troubleshooting,
+  },
+  {
     slug: "security",
     title: "Security model",
     summary: "Trust boundary, key schedule, and the rules that must hold.",
@@ -33,7 +54,7 @@ const pages: readonly DocsPage[] = [
   {
     slug: "self-host",
     title: "Self-host",
-    summary: "Deploy the Worker, D1 metadata, and private R2 storage.",
+    summary: "Run Share with Docker Compose or Cloudflare.",
     content: selfHost,
   },
 ];
