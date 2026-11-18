@@ -28,11 +28,12 @@ export async function unlockEncryptedShare(options: UnlockShareOptions): Promise
   const encryptedManifest = new Uint8Array(await manifestResponse.arrayBuffer());
   const manifest = await decryptManifest(encryptedManifest, shareKeys.manifest, options.id);
 
+  const filesById = new Map(manifest.files.map((file) => [file.id, file]));
   return {
     id: options.id,
     manifest,
-    openFile(file) {
-      const listedFile = manifest.files.find((candidate) => candidate.id === file.id);
+    openFile(file, range) {
+      const listedFile = filesById.get(file.id);
       if (!listedFile || listedFile.path !== file.path) {
         throw new Error("File is not part of this share");
       }
@@ -43,6 +44,9 @@ export async function unlockEncryptedShare(options: UnlockShareOptions): Promise
         shareKeys.readCredential,
         masterKey,
         listedFile,
+        range?.start ?? 0,
+        range?.end ?? listedFile.size,
+        range?.signal,
       );
     },
   };
@@ -55,36 +59,63 @@ function decryptedFileStream(
   readCredential: string,
   masterKey: Uint8Array,
   file: ManifestFile,
+  start: number,
+  end: number,
+  externalSignal?: AbortSignal,
 ): ReadableStream<Uint8Array> {
-  let index = 0;
+  if (
+    !Number.isSafeInteger(start) ||
+    !Number.isSafeInteger(end) ||
+    start < 0 ||
+    end < start ||
+    end > file.size
+  ) {
+    throw new RangeError("Invalid file range");
+  }
+
+  let offset = start;
+  const abort = new AbortController();
+  const signal = externalSignal ? AbortSignal.any([abort.signal, externalSignal]) : abort.signal;
   let keyPromise: Promise<CryptoKey> | undefined;
 
-  return new ReadableStream<Uint8Array>({
-    async pull(controller) {
-      if (index >= file.chunks) {
-        controller.close();
-        return;
-      }
+  return new ReadableStream<Uint8Array>(
+    {
+      async pull(controller) {
+        if (offset >= end) {
+          controller.close();
+          return;
+        }
 
-      keyPromise ??= deriveFileKey(masterKey, shareId, file.id);
-      const response = await requireOk(
-        await request(
-          apiUrl(apiBaseUrl, `/v1/shares/${shareId}/objects/${file.id}/chunks/${index}`),
-          { headers: { Authorization: `Share ${readCredential}` } },
-        ),
-      );
-      const ciphertext = new Uint8Array(await response.arrayBuffer());
-      const expectedBytes = expectedChunkBytes(file, index);
-      const plaintext = await decryptChunk(ciphertext, expectedBytes, await keyPromise, {
-        shareId,
-        objectId: file.id,
-        index,
-        noncePrefix: file.noncePrefix,
-      });
-      index += 1;
-      controller.enqueue(plaintext);
+        const index = Math.floor(offset / file.chunkSize);
+        if (index >= file.chunks) throw new Error("Invalid encrypted file length");
+        const chunkStart = index * file.chunkSize;
+        keyPromise ??= deriveFileKey(masterKey, shareId, file.id);
+        const response = await requireOk(
+          await request(
+            apiUrl(apiBaseUrl, `/v1/shares/${shareId}/objects/${file.id}/chunks/${index}`),
+            { headers: { Authorization: `Share ${readCredential}` }, signal },
+          ),
+        );
+        const ciphertext = new Uint8Array(await response.arrayBuffer());
+        const expectedBytes = expectedChunkBytes(file, index);
+        const plaintext = await decryptChunk(ciphertext, expectedBytes, await keyPromise, {
+          shareId,
+          objectId: file.id,
+          index,
+          noncePrefix: file.noncePrefix,
+        });
+        if (abort.signal.aborted) return;
+        signal.throwIfAborted();
+        const next = Math.min(end, chunkStart + plaintext.byteLength);
+        controller.enqueue(plaintext.subarray(offset - chunkStart, next - chunkStart));
+        offset = next;
+      },
+      cancel() {
+        abort.abort();
+      },
     },
-  });
+    { highWaterMark: 0 },
+  );
 }
 
 function expectedChunkBytes(file: ManifestFile, index: number): number {

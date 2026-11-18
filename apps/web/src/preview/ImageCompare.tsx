@@ -4,6 +4,7 @@ import { ArrowLeftRight, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { formatBytes } from "../lib/format";
 import { PREVIEW_LIMIT_BYTES, previewKind, safeMediaType } from "./kinds";
+import { readShareBlob } from "./share-file-cache";
 
 /** URLs are created from locally decrypted bytes and revoked on unmount. */
 function useComparisonImage(
@@ -26,8 +27,7 @@ function useComparisonImage(
       return;
     }
     setState({ url: null, error: null });
-    void new Response(share.openFile(file))
-      .blob()
+    void readShareBlob(share, file)
       .then((blob) => {
         if (cancelled) return;
         objectUrl = URL.createObjectURL(

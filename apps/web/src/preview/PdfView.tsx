@@ -28,7 +28,19 @@ const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3];
  * Renders a PDF with pdf.js onto canvases, one page at a time as it scrolls into view. PDF
  * scripts, forms, and links are not executed or followed; only page drawings are shown.
  */
-export function PdfView({ blob, name }: { blob: Blob; name: string }): React.JSX.Element {
+type PdfRangeSource = {
+  length: number;
+  chunkSize: number;
+  read: (start: number, end: number, signal: AbortSignal) => Promise<ArrayBuffer>;
+};
+
+export function PdfView({
+  source,
+  name,
+}: {
+  source: Blob | PdfRangeSource;
+  name: string;
+}): React.JSX.Element {
   const [document, setDocument] = useState<PDFDocumentProxy | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -36,10 +48,37 @@ export function PdfView({ blob, name }: { blob: Blob; name: string }): React.JSX
   useEffect(() => {
     let active = true;
     let task: { destroy(): Promise<void> } | null = null;
-    Promise.all([loadPdfJs(), blob.arrayBuffer()])
-      .then(([module, data]) => {
+    const abort = new AbortController();
+    void loadPdfJs()
+      .then(async (module) => {
+        if (!active) return null;
+        const rangeSource = source instanceof Blob ? null : source;
+        const options = rangeSource
+          ? {
+              range: new (class extends module.PDFDataRangeTransport {
+                override requestDataRange(begin: number, end: number): void {
+                  void rangeSource
+                    .read(begin, end, abort.signal)
+                    .then((data) => {
+                      if (!abort.signal.aborted) this.onDataRange(begin, new Uint8Array(data));
+                    })
+                    .catch(() => {
+                      if (!active || abort.signal.aborted) return;
+                      setError("The PDF data could not be loaded. Reopen the file to retry.");
+                      abort.abort();
+                      void task?.destroy();
+                      task = null;
+                    });
+                }
+              })(rangeSource.length, null, true),
+              rangeChunkSize: rangeSource.chunkSize,
+              disableStream: true,
+              disableAutoFetch: true,
+            }
+          : { data: new Uint8Array(await (source as Blob).arrayBuffer()) };
+        if (!active) return null;
         const loading = module.getDocument({
-          data: new Uint8Array(data),
+          ...options,
           // WebAssembly decoders would need 'wasm-unsafe-eval' in the page policy.
           useWasm: false,
           enableXfa: false,
@@ -48,14 +87,13 @@ export function PdfView({ blob, name }: { blob: Blob; name: string }): React.JSX
           standardFontDataUrl: "/pdfjs/standard_fonts/",
         });
         task = loading;
-        if (!active) void loading.destroy();
         return loading.promise;
       })
       .then((pdf) => {
-        if (active) setDocument(pdf);
+        if (active && pdf) setDocument(pdf);
       })
       .catch((caught: unknown) => {
-        if (!active) return;
+        if (!active || abort.signal.aborted) return;
         const password = caught instanceof Error && caught.name === "PasswordException";
         setError(
           password
@@ -65,9 +103,10 @@ export function PdfView({ blob, name }: { blob: Blob; name: string }): React.JSX
       });
     return () => {
       active = false;
+      abort.abort();
       void task?.destroy();
     };
-  }, [blob]);
+  }, [source]);
 
   if (error) return <div className="content-state error-state">{error}</div>;
   if (!document) {
@@ -132,37 +171,46 @@ function PdfPage({
 
   useEffect(() => {
     const element = holder.current;
-    if (!element || visible) return;
+    if (!element) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) setVisible(true);
+        setVisible(entries.some((entry) => entry.isIntersecting));
       },
       { rootMargin: "600px 0px" },
     );
     observer.observe(element);
     return () => observer.disconnect();
-  }, [visible]);
+  }, []);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: zoom changes the holder width, so the page must be drawn again at the new size.
   useEffect(() => {
     if (!visible) return;
     let cancelled = false;
     let task: { cancel(): void; promise: Promise<void> } | null = null;
-    void document.getPage(pageNumber).then((page) => {
-      const target = canvas.current;
-      const width = holder.current?.clientWidth ?? 800;
-      if (cancelled || !target) return;
-      const base = page.getViewport({ scale: 1 });
-      setAspect(base.height / base.width);
-      const scale = (width / base.width) * (window.devicePixelRatio || 1);
-      const viewport = page.getViewport({ scale });
-      target.width = Math.floor(viewport.width);
-      target.height = Math.floor(viewport.height);
-      task = page.render({ canvas: target, viewport });
-      task.promise.catch(() => {
-        // A cancelled render rejects; the next effect run draws the page again.
+    void document
+      .getPage(pageNumber)
+      .then((page) => {
+        const target = canvas.current;
+        const width = holder.current?.clientWidth ?? 800;
+        if (cancelled || !target) return;
+        const base = page.getViewport({ scale: 1 });
+        setAspect(base.height / base.width);
+        const scale = Math.min(
+          (width / base.width) * (window.devicePixelRatio || 1),
+          Math.sqrt(8_000_000 / (base.width * base.height)),
+          4096 / Math.max(base.width, base.height),
+        );
+        const viewport = page.getViewport({ scale });
+        target.width = Math.floor(viewport.width);
+        target.height = Math.floor(viewport.height);
+        task = page.render({ canvas: target, viewport });
+        return task.promise.catch(() => {
+          // A cancelled render rejects; the next effect run draws the page again.
+        });
+      })
+      .catch(() => {
+        // A page may be released as the preview closes.
       });
-    });
     return () => {
       cancelled = true;
       task?.cancel();
@@ -175,7 +223,7 @@ function PdfPage({
       className="pdf-page"
       style={{ width: `${zoom * 100}%`, aspectRatio: `1 / ${aspect}` }}
     >
-      <canvas ref={canvas} aria-label={`Page ${pageNumber}`} role="img" />
+      {visible ? <canvas ref={canvas} aria-label={`Page ${pageNumber}`} role="img" /> : null}
     </div>
   );
 }

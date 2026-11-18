@@ -18,7 +18,7 @@ export function App(): React.JSX.Element {
   if (shareMatch?.[1]) {
     return (
       <Suspense fallback={<RouteLoading />}>
-        <Share id={shareMatch[1]} />
+        <Share key={shareMatch[1]} id={shareMatch[1]} />
       </Suspense>
     );
   }

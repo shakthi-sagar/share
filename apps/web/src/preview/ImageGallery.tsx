@@ -5,9 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import { formatBytes } from "../lib/format";
 import { ImageCompare } from "./ImageCompare";
 import { previewKind, safeMediaType } from "./kinds";
+import { CACHE_FILE_LIMIT, readShareBlob } from "./share-file-cache";
 
 const PAGE_SIZE = 24;
-const THUMB_LIMIT_BYTES = 24 * 1024 * 1024;
 
 /** Page through image collections without fetching the entire encrypted snapshot. */
 export function ImageGallery({
@@ -174,11 +174,10 @@ function GalleryTile({
   }, []);
 
   useEffect(() => {
-    if (!visible || file.size > THUMB_LIMIT_BYTES) return;
+    if (!visible || file.size > CACHE_FILE_LIMIT) return;
     let disposed = false;
     let objectUrl: string | null = null;
-    void new Response(share.openFile(file))
-      .blob()
+    void readShareBlob(share, file)
       .then((blob) => {
         if (disposed) return;
         const type = safeMediaType(previewKind(file.path, file.mime), file.path, file.mime);
@@ -211,7 +210,7 @@ function GalleryTile({
         ) : null}
         {source && !error ? (
           <img src={source} alt="" loading="lazy" onError={() => setError(true)} />
-        ) : error || file.size > THUMB_LIMIT_BYTES ? (
+        ) : error || file.size > CACHE_FILE_LIMIT ? (
           <span className="gallery-placeholder">
             <ImageOff size={22} aria-hidden="true" />{" "}
             {error ? "Preview unavailable" : "Open to view"}

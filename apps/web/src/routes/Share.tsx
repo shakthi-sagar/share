@@ -39,8 +39,11 @@ import {
 } from "../preview/FilePreview";
 import { ImageGallery } from "../preview/ImageGallery";
 import { KindIcon } from "../preview/KindIcon";
-import { hasRenderedView, previewKind } from "../preview/kinds";
+import { hasRenderedView, PREVIEW_LIMIT_BYTES, previewKind } from "../preview/kinds";
+import { PdfView } from "../preview/PdfView";
 import { SplitView } from "../preview/SplitView";
+import { StreamedMedia } from "../preview/StreamedMedia";
+import { CACHE_FILE_LIMIT, readShareBlob } from "../preview/share-file-cache";
 
 export function Share({ id }: { id: string }): React.JSX.Element {
   const fragmentKey = new URLSearchParams(window.location.hash.slice(1)).get("k");
@@ -518,10 +521,25 @@ function FileView({
   file: ManifestFile;
   onNavigate: (file: ManifestFile) => void;
 }): React.JSX.Element {
+  const declared = previewKind(file.path, file.mime);
+  const large = file.size > CACHE_FILE_LIMIT;
+  const ranged = large && (declared === "pdf" || declared === "audio" || declared === "video");
+  const [previewRequested, setPreviewRequested] = useState(false);
+  const confirm = large && file.size <= PREVIEW_LIMIT_BYTES[declared];
   const loaded = useLoadedPreview(
     file,
-    () => new Response(share.openFile(file)).blob(),
+    () => readShareBlob(share, file),
     (error) => describeShareError(error, "Unable to open file"),
+    !ranged && (!confirm || previewRequested),
+  );
+  const pdfSource = useMemo(
+    () => ({
+      length: file.size,
+      chunkSize: file.chunkSize,
+      read: (start: number, end: number, signal: AbortSignal) =>
+        new Response(share.openFile(file, { start, end, signal })).arrayBuffer(),
+    }),
+    [share, file],
   );
   const wide = useWideLayout();
   const kind = loaded.status === "ready" ? loaded.kind : previewKind(file.path, file.mime);
@@ -551,14 +569,40 @@ function FileView({
         </div>
       </div>
       <div className="viewer-file-content">
-        <FileBody
-          loaded={loaded}
-          file={file}
-          fileName={fileName}
-          mode={mode}
-          share={share}
-          onNavigate={onNavigate}
-        />
+        {ranged && declared === "pdf" && !confirm ? (
+          <DownloadOnly
+            reason="too-large"
+            name={fileName}
+            size={file.size}
+            action={<DownloadButton share={share} file={file} />}
+          />
+        ) : (confirm || ranged) && !previewRequested ? (
+          <div className="binary-viewer">
+            <p>
+              {formatBytes(file.size)} {ranged ? "· Loads on demand" : "· Loads into this tab"}
+            </p>
+            <button
+              className="button button-secondary"
+              type="button"
+              onClick={() => setPreviewRequested(true)}
+            >
+              {declared === "audio" || declared === "video" ? "Load player" : "Load preview"}
+            </button>
+          </div>
+        ) : ranged && declared === "pdf" ? (
+          <PdfView source={pdfSource} name={fileName} />
+        ) : ranged && (declared === "audio" || declared === "video") ? (
+          <StreamedMedia share={share} file={file} kind={declared} name={fileName} />
+        ) : (
+          <FileBody
+            loaded={loaded}
+            file={file}
+            fileName={fileName}
+            mode={mode}
+            share={share}
+            onNavigate={onNavigate}
+          />
+        )}
       </div>
     </div>
   );
@@ -625,7 +669,7 @@ function FileBody({
           ? {
               path: file.path,
               files: share.manifest.files,
-              openFile: (asset) => new Response(share.openFile(asset)).blob(),
+              openFile: (asset) => readShareBlob(share, asset),
               onOpenFile: onNavigate,
             }
           : undefined
@@ -661,9 +705,20 @@ function DownloadButton({
           setDownloading(true);
           setError(null);
           try {
-            const blob = await new Response(share.openFile(file), {
-              headers: { "Content-Type": file.mime },
-            }).blob();
+            const picker = (
+              window as Window & {
+                showSaveFilePicker?: (options: { suggestedName: string }) => Promise<{
+                  createWritable(): Promise<WritableStream<Uint8Array>>;
+                }>;
+              }
+            ).showSaveFilePicker;
+            if (file.size > CACHE_FILE_LIMIT && picker) {
+              const handle = await picker.call(window, { suggestedName: fileName });
+              const destination = await handle.createWritable();
+              await share.openFile(file).pipeTo(destination);
+              return;
+            }
+            const blob = await readShareBlob(share, file);
             const url = URL.createObjectURL(blob);
             const anchor = document.createElement("a");
             anchor.href = url;
@@ -671,7 +726,9 @@ function DownloadButton({
             anchor.click();
             window.setTimeout(() => URL.revokeObjectURL(url), 0);
           } catch (caught) {
-            setError(describeShareError(caught, "The download failed"));
+            if (!(caught instanceof DOMException && caught.name === "AbortError")) {
+              setError(describeShareError(caught, "The download failed"));
+            }
           } finally {
             setDownloading(false);
           }

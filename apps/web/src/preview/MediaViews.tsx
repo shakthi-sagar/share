@@ -308,8 +308,20 @@ export function MediaView({
   name: string;
 }): React.JSX.Element {
   const url = useObjectUrl(blob, type);
-  const [failed, setFailed] = useState(false);
   if (!url) return <div className="content-state">Preparing media…</div>;
+  return <MediaPlayer key={url} url={url} kind={kind} name={name} />;
+}
+
+export function MediaPlayer({
+  url,
+  kind,
+  name,
+}: {
+  url: string;
+  kind: "audio" | "video";
+  name: string;
+}): React.JSX.Element {
+  const [failed, setFailed] = useState(false);
   if (failed) {
     return (
       <div className="content-state">

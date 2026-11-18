@@ -39,5 +39,8 @@ export interface CreatedShare {
 export interface UnlockedShare {
   id: string;
   manifest: ShareManifest;
-  openFile(file: ManifestFile): ReadableStream<Uint8Array>;
+  openFile(
+    file: ManifestFile,
+    range?: { start: number; end: number; signal?: AbortSignal },
+  ): ReadableStream<Uint8Array>;
 }

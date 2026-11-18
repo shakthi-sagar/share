@@ -45,12 +45,14 @@ export function useLoadedPreview(
   file: { path: string; mime: string; size: number },
   load: () => Promise<Blob>,
   describeError: (error: unknown) => string,
+  enabled = true,
 ): LoadedPreview {
   const [state, setState] = useState<LoadedPreview>({ status: "loading" });
   const { path, mime, size } = file;
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: `load` and `describeError` are recreated each render; the file identity decides when to reload.
   useEffect(() => {
+    if (!enabled) return;
     let active = true;
     const declared = previewKind(path, mime);
     const sniff = declared === "binary" && size > 0 && size <= SNIFF_LIMIT_BYTES;
@@ -83,7 +85,7 @@ export function useLoadedPreview(
     return () => {
       active = false;
     };
-  }, [path, mime, size]);
+  }, [path, mime, size, enabled]);
 
   return state;
 }
@@ -226,7 +228,7 @@ export function BlobPreview({
     case "image":
       return <ImageView blob={blob} type={type} name={name} />;
     case "pdf":
-      return <PdfView blob={blob} name={name} />;
+      return <PdfView source={blob} name={name} />;
     case "office":
       return <OfficeView blob={blob} path={path} />;
     case "audio":

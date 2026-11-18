@@ -57,3 +57,15 @@ its position. Every move is also available from the entry's `Move to` control, w
 destination list the tree offers while dragging.
 
 [Revoking a share](/docs#revoking-a-share) describes how to end a live snapshot early.
+
+## Previewing large files
+
+Share can reuse decrypted files up to 16 MiB while the page is open. The cache holds up to 64 MiB
+per unlocked share and drops older entries as it fills. Reload the page or close the tab to clear it.
+Previously opened files can remain visible in that tab after the share expires or is revoked.
+
+Larger previews start when you choose **Load preview** or **Load player**. PDF previews request
+encrypted chunks as needed, within the PDF preview size limit. The PDF decoder can still allocate a
+document-sized buffer. Browser-compatible audio and video play from streamed chunks when supported.
+On browsers with a save-file picker, large downloads stream directly to the selected destination.
+The standard download in other browsers assembles a temporary copy in memory.

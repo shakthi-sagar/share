@@ -114,6 +114,34 @@ describe("encrypted share API", () => {
     ).rejects.toMatchObject({ status: 404 });
   });
 
+  it("reads only the encrypted chunks intersecting a requested byte range", async () => {
+    const bytes = patterned(DEFAULT_CHUNK_SIZE * 2 + 9);
+    const created = await publish([source("large.bin", bytes)]);
+    const chunkRequests: string[] = [];
+    const unlocked = await unlockEncryptedShare({
+      apiBaseUrl,
+      id: created.id,
+      key: created.key,
+      fetch: (input, init) => {
+        if (String(input).includes("/chunks/"))
+          chunkRequests.push(String(input).split("/").at(-1) ?? "");
+        return request(input, init);
+      },
+    });
+    const file = unlocked.manifest.files[0];
+    if (!file) throw new Error("missing file");
+    const start = DEFAULT_CHUNK_SIZE * 2 - 2;
+    const end = start + 5;
+    const output = await new Response(unlocked.openFile(file, { start, end })).arrayBuffer();
+    expect(new Uint8Array(output)).toEqual(bytes.slice(start, end));
+    expect(chunkRequests).toEqual(["1", "2"]);
+    expect(() => unlocked.openFile(file, { start: 0, end: file.size + 1 })).toThrow(RangeError);
+    expect(
+      (await new Response(unlocked.openFile(file, { start: end, end })).arrayBuffer()).byteLength,
+    ).toBe(0);
+    expect(chunkRequests).toEqual(["1", "2"]);
+  });
+
   it("stores no plaintext, names, or paths", async () => {
     const created = await publish([
       source("secret-folder/secret-name.txt", new TextEncoder().encode("plaintext marker")),
