@@ -15,7 +15,7 @@
   "dependencies": {
     "@share/crypto": "workspace:*",
     "@share/protocol": "workspace:*",
-    "hono": "4.13.9"
+    "hono": "4.13.18"
   },
   "devDependencies": {
     "vitest": "5.0.2"
