@@ -5,6 +5,7 @@ import { formatBytes } from "../lib/format";
 import { CodeView } from "./CodeView";
 import { CsvView } from "./CsvView";
 import { formatSource, formatterFor, MAX_FORMAT_CHARACTERS } from "./format-source";
+import type { HtmlAssetContext } from "./html-assets";
 import { JsonView } from "./JsonView";
 import {
   hasRenderedView,
@@ -93,11 +94,13 @@ export function RenderedText({
   text,
   path,
   name,
+  htmlAssets,
 }: {
   kind: PreviewKind;
   text: string;
   path: string;
   name: string;
+  htmlAssets?: HtmlAssetContext | undefined;
 }): React.JSX.Element {
   switch (kind) {
     case "markdown":
@@ -113,7 +116,7 @@ export function RenderedText({
     case "svg":
       return <SvgView text={text} name={name} />;
     case "html":
-      return <HtmlView text={text} name={name} />;
+      return <HtmlView text={text} name={name} assets={htmlAssets} />;
     default:
       return <SourceText kind={kind} text={text} path={path} />;
   }

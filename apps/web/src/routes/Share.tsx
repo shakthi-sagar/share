@@ -327,7 +327,15 @@ function ShareViewer({ share }: { share: UnlockedShare }): React.JSX.Element {
                   </button>
                 </div>
               </nav>
-              <FileView key={selected.id} share={share} file={selected} />
+              <FileView
+                key={selected.id}
+                share={share}
+                file={selected}
+                onNavigate={(target) => {
+                  setSelected(target);
+                  setGalleryOpen(false);
+                }}
+              />
             </div>
           ) : (
             <EmptyBundle />
@@ -504,9 +512,11 @@ function TreeNodes({
 function FileView({
   share,
   file,
+  onNavigate,
 }: {
   share: UnlockedShare;
   file: ManifestFile;
+  onNavigate: (file: ManifestFile) => void;
 }): React.JSX.Element {
   const loaded = useLoadedPreview(
     file,
@@ -541,7 +551,14 @@ function FileView({
         </div>
       </div>
       <div className="viewer-file-content">
-        <FileBody loaded={loaded} file={file} fileName={fileName} mode={mode} share={share} />
+        <FileBody
+          loaded={loaded}
+          file={file}
+          fileName={fileName}
+          mode={mode}
+          share={share}
+          onNavigate={onNavigate}
+        />
       </div>
     </div>
   );
@@ -553,12 +570,14 @@ function FileBody({
   fileName,
   mode,
   share,
+  onNavigate,
 }: {
   loaded: LoadedPreview;
   file: ManifestFile;
   fileName: string;
   mode: PreviewMode;
   share: UnlockedShare;
+  onNavigate: (file: ManifestFile) => void;
 }): React.JSX.Element {
   if (loaded.status === "loading") {
     return (
@@ -596,7 +615,22 @@ function FileBody({
     );
   }
   const rendered = (
-    <RenderedText kind={loaded.kind} text={loaded.text} path={file.path} name={fileName} />
+    <RenderedText
+      kind={loaded.kind}
+      text={loaded.text}
+      path={file.path}
+      name={fileName}
+      htmlAssets={
+        loaded.kind === "html"
+          ? {
+              path: file.path,
+              files: share.manifest.files,
+              openFile: (asset) => new Response(share.openFile(asset)).blob(),
+              onOpenFile: onNavigate,
+            }
+          : undefined
+      }
+    />
   );
   const source = <SourceText kind={loaded.kind} text={loaded.text} path={file.path} />;
   if (!hasRenderedView(loaded.kind) || mode === "source") return source;

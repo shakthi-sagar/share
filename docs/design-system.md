@@ -165,6 +165,13 @@ unknown binaries) fall back to the download state.
 - Source uses `CodeView`: a line-number gutter and highlight.js colors from the `--syntax-*`
   tokens. Highlighting stops past 300,000 characters.
 - The source viewer offers lazy-loaded, non-destructive formatting for JSON, HTML, SVG, JS/TS, CSS, Markdown, and YAML, plus a wrapping toggle. Formatting errors retain the original text. No formatted content is uploaded.
+- HTML previews in published shares resolve relative image/media/stylesheet links against the
+  decrypted manifest path (e.g., `report/index.html` -> `report/image.png`). Matched encrypted
+  files are decrypted locally, represented as temporary blob URLs (or inline CSS), and the iframe
+  stays sandboxed (allow-same-origin only for local blob image access) with scripts, forms,
+  connections, nested frames, and remote resources blocked by an additional document CSP.
+  Relative links to previewable files are intercepted by the parent and open in the file viewer. Downloads never occur automatically;
+  asset counts/limits are bounded and temporary object URLs are revoked on unmount.
 - `SplitView` owns the resizable divider. It is a focusable separator (arrow keys, Home, End, Enter
   to reset) and keeps both panes' scroll positions proportional.
 - Mermaid fences render as diagrams with a `Show source` toggle; a syntax error shows the message
