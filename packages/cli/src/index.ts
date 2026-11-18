@@ -6,6 +6,7 @@ import {
   readFileSync,
   realpathSync,
   statSync,
+  unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
@@ -45,6 +46,11 @@ const MIME: Record<string, string> = {
   webm: "video/webm",
   mp3: "audio/mpeg",
   wav: "audio/wav",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  glb: "model/gltf-binary",
+  gltf: "model/gltf+json",
 };
 const receiptDir = join(homedir(), ".local", "share", "receipts");
 
@@ -83,6 +89,7 @@ function positional(args: string[]): string[] {
       i++;
       continue;
     }
+    if (args[i] === "--json") continue;
     if (args[i]!.startsWith("--")) throw new Error(`Unknown flag: ${args[i]}`);
     out.push(args[i]!);
   }
@@ -135,7 +142,7 @@ async function main(): Promise<void> {
   const [cmd, ...args] = process.argv.slice(2);
   if (!cmd || ["help", "--help", "-h"].includes(cmd)) {
     console.log(
-      `share — encrypted, expiring file links\n\n  share put <file|folder> [...] [--expires 1d] [--name title] [--server URL]\n  share inspect <share-url> [--server URL]\n  share revoke <share-id> [--server URL]\n\nDefaults: 24h expiry (maximum 7d), https://share.shadster.dev\nUploads encrypt locally; URLs contain the decryption key. Treat links as secrets.\nReceipts for revocation are stored locally in ~/.local/share/receipts/ (mode 0600).`,
+      `share — encrypted, expiring file links\n\n  share put <file|folder> [...] [--expires 1d] [--name title] [--server URL]\n  share inspect <share-url> [--server URL]\n  share revoke <share-id> [--server URL]\n  share ls [--json]\n  share status [--server URL] [--json]\n\nDefaults: 24h expiry (maximum 7d), https://share.shadster.dev\nUploads encrypt locally; URLs contain the decryption key. Treat links as secrets.\nReceipts for revocation are stored locally in ~/.local/share/receipts/ (mode 0600).`,
     );
     return;
   }
@@ -150,6 +157,7 @@ async function main(): Promise<void> {
       inputs.length === 1 ? basename(resolve(inputs[0]!)) : "Shared files",
     )!;
     const base = baseURL(args);
+    const outputJson = args.includes("--json");
     const created = await createEncryptedShare({
       apiBaseUrl: base,
       shareBaseUrl: base,
@@ -157,7 +165,7 @@ async function main(): Promise<void> {
       files,
       expiresInSeconds,
       onProgress: (p) => {
-        if (p.stage === "uploading")
+        if (!outputJson && p.stage === "uploading")
           process.stderr.write(
             `\rUploaded ${p.path}: ${p.uploadedChunks}/${p.totalChunks} chunks   `,
           );
@@ -173,15 +181,30 @@ async function main(): Promise<void> {
           deleteToken: created.deleteToken,
           server: base,
           expiresAt: created.expiresAt,
+          name,
+          fileCount: files.length,
+          createdAt: new Date().toISOString(),
         },
         null,
         2,
       ),
       { mode: 0o600, flag: "wx" },
     );
-    process.stderr.write("\n");
-    console.log(created.urlWithKey);
-    console.error(`Expires: ${created.expiresAt}; revoke: share revoke ${created.id}`);
+    if (outputJson)
+      console.log(
+        JSON.stringify({
+          id: created.id,
+          url: created.urlWithKey,
+          expiresAt: created.expiresAt,
+          fileCount: files.length,
+          name,
+        }),
+      );
+    else {
+      process.stderr.write("\n");
+      console.log(created.urlWithKey);
+      console.error(`Expires: ${created.expiresAt}; revoke: share revoke ${created.id}`);
+    }
     return;
   }
   if (cmd === "inspect") {
@@ -201,6 +224,54 @@ async function main(): Promise<void> {
     );
     return;
   }
+  if (cmd === "ls") {
+    const records = existsSync(receiptDir)
+      ? readdirSync(receiptDir)
+          .filter((file) => /^[A-Za-z0-9_-]{22}\.json$/.test(file))
+          .map((file) => {
+            try {
+              const record = JSON.parse(readFileSync(join(receiptDir, file), "utf8")) as {
+                id: string;
+                name?: string;
+                fileCount?: number;
+                expiresAt: string | null;
+                createdAt?: string;
+              };
+              return {
+                id: record.id,
+                name: record.name ?? "Unlabeled share",
+                fileCount: record.fileCount ?? null,
+                expiresAt: record.expiresAt,
+                createdAt: record.createdAt ?? null,
+                expired: Boolean(record.expiresAt && Date.parse(record.expiresAt) <= Date.now()),
+              };
+            } catch {
+              return null;
+            }
+          })
+          .filter((item) => item !== null)
+      : [];
+    records.sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
+    if (args.includes("--json")) console.log(JSON.stringify(records));
+    else if (!records.length) console.log("No local share receipts found.");
+    else
+      for (const record of records)
+        console.log(
+          `${record.id}  ${record.expired ? "EXPIRED" : (record.expiresAt ?? "NO EXPIRY")}  ${record.name}`,
+        );
+    return;
+  }
+  if (cmd === "status") {
+    const server = baseURL(args);
+    const response = await fetch(`${server}/health`, { signal: AbortSignal.timeout(10000) });
+    if (!response.ok) throw new Error(`Share service returned HTTP ${response.status}`);
+    const health = (await response.json()) as { status?: string };
+    if (health.status !== "ok")
+      throw new Error("Share service returned an unexpected health response");
+    if (args.includes("--json")) console.log(JSON.stringify({ status: "ok", server }));
+    else console.log(`Share service healthy: ${server}`);
+    return;
+  }
   if (cmd === "revoke") {
     const [id] = positional(args);
     if (!id || !/^[A-Za-z0-9_-]{22}$/.test(id)) throw new Error("Provide a valid share ID");
@@ -211,6 +282,7 @@ async function main(): Promise<void> {
       server: string;
     };
     await deleteEncryptedShare(receipt.server, id, receipt.deleteToken);
+    unlinkSync(file);
     console.log(`Revoked ${id}`);
     return;
   }

@@ -14,6 +14,7 @@ import {
   List,
   LockKeyhole,
   Menu,
+  Search,
   X,
 } from "lucide-react";
 import { type KeyboardEvent, useCallback, useEffect, useMemo, useState } from "react";
@@ -153,6 +154,14 @@ export function Share({ id }: { id: string }): React.JSX.Element {
 function ShareViewer({ share }: { share: UnlockedShare }): React.JSX.Element {
   const [selected, setSelected] = useState<ManifestFile | null>(share.manifest.files[0] ?? null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [fileQuery, setFileQuery] = useState("");
+  const filteredFiles = useMemo(
+    () =>
+      share.manifest.files.filter((file) =>
+        file.path.toLocaleLowerCase().includes(fileQuery.trim().toLocaleLowerCase()),
+      ),
+    [share, fileQuery],
+  );
   const [galleryOpen, setGalleryOpen] = useState(
     () =>
       share.manifest.files.filter((file) =>
@@ -247,15 +256,31 @@ function ShareViewer({ share }: { share: UnlockedShare }): React.JSX.Element {
               <X size={17} />
             </button>
           </div>
-          <FileTree
-            files={share.manifest.files}
-            selected={selected}
-            onSelect={(file) => {
-              setSelected(file);
-              setGalleryOpen(false);
-              setDrawerOpen(false);
-            }}
-          />
+          <label className="viewer-file-search">
+            <Search size={15} aria-hidden="true" />
+            <span className="visually-hidden">Search files by name or path</span>
+            <input
+              aria-label="Search files"
+              type="search"
+              value={fileQuery}
+              onChange={(event) => setFileQuery(event.target.value)}
+              placeholder="Find files…"
+            />
+            {fileQuery ? <span className="viewer-search-count">{filteredFiles.length}</span> : null}
+          </label>
+          {filteredFiles.length || !fileQuery ? (
+            <FileTree
+              files={filteredFiles}
+              selected={selected}
+              onSelect={(file) => {
+                setSelected(file);
+                setGalleryOpen(false);
+                setDrawerOpen(false);
+              }}
+            />
+          ) : (
+            <p className="viewer-no-results">No files match “{fileQuery}”.</p>
+          )}
         </aside>
         {drawerOpen ? (
           <button

@@ -176,7 +176,9 @@ unknown binaries) fall back to the download state.
   formatting require the original file. ZIP entry decompression and total text are bounded.
 - A snapshot with multiple images opens a responsive, paginated gallery by default. Gallery
   thumbnails decrypt only when entering view and large images have a click-to-open fallback;
-  selecting a tile opens the existing full-resolution preview. Previous and next buttons navigate
+  selecting a tile opens the existing full-resolution preview. Images offer a fullscreen modal
+  with bounded zoom (100–800%), pointer panning, keyboard shortcuts, an Escape close action, and
+  focus restoration after closing. Previous and next buttons navigate
   through files without downloading them.
 - Media previews always get a blob type chosen by `safeMediaType`, never the sender's MIME type.
 - The transparency checkerboard behind SVG previews is the only gradient in the system; it is
@@ -195,6 +197,9 @@ and decrypt file content only when it is needed for preview or download.
 
 Render every name that came from a manifest through `displayPath`, so control and text-direction
 characters in an older share appear as visible escapes rather than reordering the name.
+
+The sidebar has a locally filtered filename/path search; it searches the decrypted manifest only,
+never sends filenames or queries to the server, and shows a count and empty state.
 
 The tree follows the WAI-ARIA tree pattern: Up and Down move between visible rows, Home and End jump
 to the ends, Right opens a folder or moves into it, and Left closes it.

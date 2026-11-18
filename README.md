@@ -27,6 +27,8 @@ separately derived read credential, and requires that credential before returnin
   audio, video, and fonts; other files download
 - Split edit and preview for Markdown, SVG, and HTML in a local workspace
 - Multi-image gallery with locally decrypted, on-demand thumbnails, pagination, and full-image navigation
+- Fullscreen image inspection with zoom, pan, reset and keyboard controls
+- Search filenames and nested paths in the share viewer without downloading additional files
 - Read-only text previews for DOCX, XLSX, and PPTX (complex formatting remains download-only)
 - Collapsible nested folder tree
 - One Cloudflare Worker serving the React app and API
@@ -136,9 +138,13 @@ node packages/cli/dist/cli.mjs put screenshot.png --expires 1d
 node packages/cli/dist/cli.mjs put ./screenshots --name "Scene renders"
 node packages/cli/dist/cli.mjs inspect 'https://share.shadster.dev/s/<id>#k=<key>'
 node packages/cli/dist/cli.mjs revoke <id>
+node packages/cli/dist/cli.mjs ls --json
+node packages/cli/dist/cli.mjs status --json
 ```
 
 On Linux, symlink the built script to `~/.local/bin/share` to make it available globally.
+Use `share put screenshot.png --json` for agent-friendly output, `share ls --json` to
+inspect locally recorded share IDs and expirations, and `share status` for a service health check.
 CLI delete receipts live at `~/.local/share/receipts` (private file permissions), so the original
 machine can revoke links early. Publishing a new share does not modify a previous immutable snapshot.
 

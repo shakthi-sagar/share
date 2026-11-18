@@ -1,4 +1,5 @@
-import { useEffect, useId, useMemo, useState } from "react";
+import { Maximize2, Minus, Plus, RotateCcw, X } from "lucide-react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
 /** A blob URL for `blob` with an explicit type, revoked when the view goes away. */
 export function useObjectUrl(blob: Blob, type: string): string | null {
@@ -12,7 +13,7 @@ export function useObjectUrl(blob: Blob, type: string): string | null {
   return url;
 }
 
-/** Fits the image to the pane; clicking toggles its actual size. */
+/** Image viewer with an accessible fullscreen lightbox, bounded zoom, and pointer panning. */
 export function ImageView({
   blob,
   type,
@@ -25,20 +26,68 @@ export function ImageView({
   checkerboard?: boolean;
 }): React.JSX.Element {
   const url = useObjectUrl(blob, type);
-  const [actualSize, setActualSize] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [scale, setScale] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [dimensions, setDimensions] = useState<string | null>(null);
+  const pointer = useRef<{ x: number; y: number } | null>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
+  const opener = useRef<HTMLButtonElement>(null);
+  const zoom = useCallback(
+    (delta: number): void =>
+      setScale((current) => Math.min(8, Math.max(1, Math.round((current + delta) * 10) / 10))),
+    [],
+  );
+  const reset = useCallback((): void => {
+    setScale(1);
+    setOffset({ x: 0, y: 0 });
+  }, []);
+  const close = useCallback((): void => {
+    setExpanded(false);
+    reset();
+  }, [reset]);
+
+  useEffect(() => {
+    if (!expanded) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    closeButton.current?.focus();
+    const keydown = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") close();
+      if (event.key === "+" || event.key === "=") zoom(0.25);
+      if (event.key === "-") zoom(-0.25);
+      if (event.key === "0") reset();
+      if (event.key === "Tab") {
+        const controls = [
+          ...document.querySelectorAll<HTMLElement>(".image-lightbox button:not(:disabled)"),
+        ];
+        const index = controls.indexOf(document.activeElement as HTMLElement);
+        if (
+          controls.length &&
+          ((event.shiftKey && index === 0) || (!event.shiftKey && index === controls.length - 1))
+        ) {
+          event.preventDefault();
+          controls[event.shiftKey ? controls.length - 1 : 0]?.focus();
+        }
+      }
+    };
+    document.addEventListener("keydown", keydown);
+    return () => {
+      document.body.style.overflow = previous;
+      document.removeEventListener("keydown", keydown);
+      opener.current?.focus();
+    };
+  }, [expanded, close, zoom, reset]);
+
   if (!url) return <div className="content-state">Preparing image…</div>;
   return (
-    <div
-      className={`image-viewer${checkerboard ? " is-checkerboard" : ""}${actualSize ? " is-actual-size" : ""}`}
-      data-scroll-sync=""
-    >
+    <div className={`image-viewer${checkerboard ? " is-checkerboard" : ""}`} data-scroll-sync="">
       <button
+        ref={opener}
         className="image-zoom"
         type="button"
-        aria-pressed={actualSize}
-        aria-label={actualSize ? "Fit image to view" : "Show image at actual size"}
-        onClick={() => setActualSize((value) => !value)}
+        aria-label={`Open ${name} fullscreen`}
+        onClick={() => setExpanded(true)}
       >
         <img
           src={url}
@@ -50,7 +99,107 @@ export function ImageView({
           }
         />
       </button>
+      <button
+        className="button button-secondary image-expand-button"
+        type="button"
+        onClick={() => setExpanded(true)}
+      >
+        <Maximize2 size={15} aria-hidden="true" /> Fullscreen
+      </button>
       {dimensions ? <p className="image-dimensions">{dimensions} px</p> : null}
+      {expanded ? (
+        <div
+          className="image-lightbox"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Fullscreen preview: ${name}`}
+        >
+          <div className="image-lightbox-toolbar">
+            <span title={name}>
+              {name} {dimensions ? `· ${dimensions} px` : ""}
+            </span>
+            <div>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="Zoom out"
+                disabled={scale <= 1}
+                onClick={() => zoom(-0.25)}
+              >
+                <Minus size={18} />
+              </button>
+              <span aria-live="polite">{Math.round(scale * 100)}%</span>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="Zoom in"
+                disabled={scale >= 8}
+                onClick={() => zoom(0.25)}
+              >
+                <Plus size={18} />
+              </button>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="Reset zoom and pan"
+                onClick={reset}
+              >
+                <RotateCcw size={17} />
+              </button>
+              <button
+                ref={closeButton}
+                type="button"
+                className="icon-button"
+                aria-label="Close fullscreen preview"
+                onClick={close}
+              >
+                <X size={20} />
+              </button>
+            </div>
+          </div>
+          <div
+            className="image-lightbox-stage"
+            onWheel={(event) => {
+              if (event.ctrlKey) {
+                event.preventDefault();
+                zoom(event.deltaY < 0 ? 0.25 : -0.25);
+              }
+            }}
+            onPointerDown={(event) => {
+              if (scale > 1) {
+                pointer.current = { x: event.clientX - offset.x, y: event.clientY - offset.y };
+                event.currentTarget.setPointerCapture(event.pointerId);
+              }
+            }}
+            onPointerMove={(event) => {
+              if (pointer.current)
+                setOffset({
+                  x: event.clientX - pointer.current.x,
+                  y: event.clientY - pointer.current.y,
+                });
+            }}
+            onPointerUp={() => {
+              pointer.current = null;
+            }}
+            onPointerCancel={() => {
+              pointer.current = null;
+            }}
+          >
+            <img
+              src={url}
+              alt={name}
+              draggable={false}
+              style={{
+                transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
+                cursor: scale > 1 ? "grab" : "default",
+              }}
+            />
+          </div>
+          <p className="image-lightbox-hint">
+            Use + / − to zoom, drag to pan, 0 to reset, Esc to close.
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }

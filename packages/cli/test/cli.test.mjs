@@ -22,3 +22,12 @@ test("CLI rejects permanent expiry", () => {
   assert.ok(error);
   assert.match(error.stderr.toString(), /Expiry must be/);
 });
+test("CLI lists local receipts as machine-readable JSON", () => {
+  const output = execFileSync(process.execPath, [cli, "ls", "--json"], { encoding: "utf8" });
+  const receipts = JSON.parse(output);
+  assert.ok(Array.isArray(receipts));
+  for (const receipt of receipts) {
+    assert.match(receipt.id, /^[A-Za-z0-9_-]{22}$/);
+    assert.equal(typeof receipt.expired, "boolean");
+  }
+});
