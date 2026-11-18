@@ -26,6 +26,7 @@ jobs:
         run: |
           pnpm exec biome check .
           pnpm check
+          pnpm --filter @share/cli build
           pnpm test
       - name: Build distributables
         run: |
