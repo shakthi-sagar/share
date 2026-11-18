@@ -15,6 +15,7 @@ export type PreviewKind =
   | "audio"
   | "video"
   | "font"
+  | "office"
   | "binary";
 
 /** Kinds decoded as UTF-8 text. They can be edited in a workspace and shown as source. */
@@ -48,6 +49,7 @@ export const PREVIEW_LIMIT_BYTES: Record<PreviewKind, number> = {
   audio: 256 * 1024 * 1024,
   video: 512 * 1024 * 1024,
   font: 16 * 1024 * 1024,
+  office: 12 * 1024 * 1024,
   binary: 0,
 };
 
@@ -221,6 +223,7 @@ export function previewKind(path: string, mime: string): PreviewKind {
   if (extension === "svg" || type === "image/svg+xml") return "svg";
   if (extension === "html" || extension === "htm" || type === "text/html") return "html";
   if (extension === "pdf" || type === "application/pdf") return "pdf";
+  if (["docx", "xlsx", "pptx"].includes(extension)) return "office";
   if (imageExtensions.has(extension)) return "image";
   if (audioExtensions.has(extension)) return "audio";
   if (videoExtensions.has(extension)) return "video";

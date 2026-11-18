@@ -2,12 +2,16 @@ import type { UnlockedShare } from "@share/client";
 import { ApiError, unlockEncryptedShare } from "@share/client";
 import { displayPath, type ManifestFile } from "@share/protocol";
 import {
+  ArrowLeft,
+  ArrowRight,
   ChevronDown,
   ChevronRight,
   Download,
   Eye,
   Folder,
+  Images,
   KeyRound,
+  List,
   LockKeyhole,
   Menu,
   X,
@@ -32,6 +36,7 @@ import {
   useLoadedPreview,
   useWideLayout,
 } from "../preview/FilePreview";
+import { ImageGallery } from "../preview/ImageGallery";
 import { KindIcon } from "../preview/KindIcon";
 import { hasRenderedView, previewKind } from "../preview/kinds";
 import { SplitView } from "../preview/SplitView";
@@ -148,6 +153,29 @@ export function Share({ id }: { id: string }): React.JSX.Element {
 function ShareViewer({ share }: { share: UnlockedShare }): React.JSX.Element {
   const [selected, setSelected] = useState<ManifestFile | null>(share.manifest.files[0] ?? null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [galleryOpen, setGalleryOpen] = useState(
+    () =>
+      share.manifest.files.filter((file) =>
+        ["image", "svg"].includes(previewKind(file.path, file.mime)),
+      ).length > 1,
+  );
+  const imageFiles = useMemo(
+    () =>
+      share.manifest.files.filter((file) =>
+        ["image", "svg"].includes(previewKind(file.path, file.mime)),
+      ),
+    [share],
+  );
+  const selectedIndex = selected
+    ? share.manifest.files.findIndex((file) => file.id === selected.id)
+    : -1;
+  const selectRelative = (step: number): void => {
+    const next = share.manifest.files[selectedIndex + step];
+    if (next) {
+      setSelected(next);
+      setGalleryOpen(false);
+    }
+  };
   const totalSize = share.manifest.files.reduce((total, file) => total + file.size, 0);
   const name = displayPath(share.manifest.name);
 
@@ -176,6 +204,21 @@ function ShareViewer({ share }: { share: UnlockedShare }): React.JSX.Element {
           <LockKeyhole size={13} aria-hidden="true" /> End-to-end encrypted
         </span>
         <div className="viewer-actions">
+          {imageFiles.length > 0 ? (
+            <button
+              className="button button-secondary viewer-gallery-toggle"
+              type="button"
+              aria-pressed={galleryOpen}
+              onClick={() => setGalleryOpen((current) => !current)}
+            >
+              {galleryOpen ? (
+                <List size={16} aria-hidden="true" />
+              ) : (
+                <Images size={16} aria-hidden="true" />
+              )}
+              {galleryOpen ? "File view" : `Gallery (${imageFiles.length})`}
+            </button>
+          ) : null}
           <button
             className="button button-secondary mobile-tree-button"
             type="button"
@@ -209,6 +252,7 @@ function ShareViewer({ share }: { share: UnlockedShare }): React.JSX.Element {
             selected={selected}
             onSelect={(file) => {
               setSelected(file);
+              setGalleryOpen(false);
               setDrawerOpen(false);
             }}
           />
@@ -222,8 +266,44 @@ function ShareViewer({ share }: { share: UnlockedShare }): React.JSX.Element {
           />
         ) : null}
         <main className="content-pane">
-          {selected ? (
-            <FileView key={selected.id} share={share} file={selected} />
+          {galleryOpen ? (
+            <ImageGallery
+              share={share}
+              files={imageFiles}
+              onSelect={(file) => {
+                setSelected(file);
+                setGalleryOpen(false);
+              }}
+            />
+          ) : selected ? (
+            <div className="viewer-file-view">
+              <nav className="viewer-file-nav" aria-label="Navigate files">
+                <span>
+                  File {selectedIndex + 1} of {share.manifest.files.length}
+                </span>
+                <div>
+                  <button
+                    type="button"
+                    className="icon-button"
+                    disabled={selectedIndex <= 0}
+                    aria-label="Previous file"
+                    onClick={() => selectRelative(-1)}
+                  >
+                    <ArrowLeft size={17} />
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-button"
+                    disabled={selectedIndex >= share.manifest.files.length - 1}
+                    aria-label="Next file"
+                    onClick={() => selectRelative(1)}
+                  >
+                    <ArrowRight size={17} />
+                  </button>
+                </div>
+              </nav>
+              <FileView key={selected.id} share={share} file={selected} />
+            </div>
           ) : (
             <EmptyBundle />
           )}

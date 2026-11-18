@@ -26,6 +26,8 @@ separately derived read credential, and requires that credential before returnin
   highlighting, CSV and TSV tables, JSON, Jupyter notebooks, SVG, sandboxed HTML, PDF, images,
   audio, video, and fonts; other files download
 - Split edit and preview for Markdown, SVG, and HTML in a local workspace
+- Multi-image gallery with locally decrypted, on-demand thumbnails, pagination, and full-image navigation
+- Read-only text previews for DOCX, XLSX, and PPTX (complex formatting remains download-only)
 - Collapsible nested folder tree
 - One Cloudflare Worker serving the React app and API
 - D1 metadata and private R2 ciphertext storage

@@ -25,6 +25,7 @@ const icons: Record<PreviewKind, LucideIcon> = {
   audio: FileAudio,
   video: FileVideo,
   font: FileType,
+  office: FileText,
   binary: File,
 };
 

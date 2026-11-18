@@ -16,6 +16,7 @@ import {
   safeMediaType,
 } from "./kinds";
 import { FontView, HtmlView, ImageView, MediaView, SvgView } from "./MediaViews";
+import { OfficeView } from "./OfficeView";
 import { PdfView } from "./PdfView";
 
 export type PreviewMode = "rendered" | "source" | "split";
@@ -158,6 +159,8 @@ export function BlobPreview({
       return <ImageView blob={blob} type={type} name={name} />;
     case "pdf":
       return <PdfView blob={blob} name={name} />;
+    case "office":
+      return <OfficeView blob={blob} path={path} />;
     case "audio":
     case "video":
       return <MediaView blob={blob} type={type} kind={kind} name={name} />;

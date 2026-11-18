@@ -156,7 +156,7 @@ measure. Reuse `.markdown-body` for structure and add only page-specific layout 
 
 `apps/web/src/preview` owns every preview, shared by the viewer and the workspace editor.
 `previewKind` classifies a file from its extension first and its MIME type second; `kinds.test.ts`
-lists the mapping. Only files the browser cannot show (archives, office documents, HEIC, and
+lists the mapping. Only files the browser cannot show (archives, legacy office formats, HEIC, and
 unknown binaries) fall back to the download state.
 
 - Text kinds (Markdown, CSV, JSON, SVG, HTML, code, plain text) offer `Preview` and `Source`, and
@@ -171,6 +171,13 @@ unknown binaries) fall back to the download state.
 - Each kind has a preview size limit in `PREVIEW_LIMIT_BYTES`. Past it the file is offered for
   download rather than decrypted into memory. Unknown files up to 2 MiB are decrypted and shown as
   text when they look like UTF-8 text.
+- Modern Office OOXML (DOCX, XLSX, PPTX) gets a bounded, read-only text extraction preview.
+  This deliberately does not claim layout fidelity; images, slide designs, formulas, and complex
+  formatting require the original file. ZIP entry decompression and total text are bounded.
+- A snapshot with multiple images opens a responsive, paginated gallery by default. Gallery
+  thumbnails decrypt only when entering view and large images have a click-to-open fallback;
+  selecting a tile opens the existing full-resolution preview. Previous and next buttons navigate
+  through files without downloading them.
 - Media previews always get a blob type chosen by `safeMediaType`, never the sender's MIME type.
 - The transparency checkerboard behind SVG previews is the only gradient in the system; it is
   functional, not decorative.
