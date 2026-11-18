@@ -11,7 +11,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -39,6 +39,9 @@ jobs:
       - name: Install browsers
         timeout-minutes: 4
         run: pnpm exec playwright install chromium firefox webkit
+      - name: Install additional WebKit libraries
+        timeout-minutes: 8
+        run: pnpm exec playwright install-deps webkit
       - name: Provision local Cloudflare emulation
         run: |
           cp .env.example .env.development
