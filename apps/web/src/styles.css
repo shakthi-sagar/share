@@ -3991,3 +3991,192 @@ textarea:focus-visible {
   color: var(--text-muted);
   font-size: var(--text-sm);
 }
+
+/* Two-image review stays client-side; comparison never uploads decrypted pixels. */
+.gallery-toolbar,
+.comparison-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.gallery-toolbar .button,
+.comparison-actions .button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.gallery-selection-note {
+  background: var(--surface);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-sm);
+}
+.gallery-tile.is-comparison-selected {
+  border: 2px solid var(--primary);
+}
+.gallery-tile-image {
+  position: relative;
+}
+.gallery-select-indicator {
+  position: absolute;
+  z-index: 2;
+  top: 9px;
+  right: 9px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+  color: var(--text);
+  font-weight: bold;
+}
+.is-comparison-selected .gallery-select-indicator {
+  background: var(--primary);
+  color: var(--text-on-primary);
+}
+.image-comparison {
+  min-height: 100%;
+  background: var(--page);
+  padding: clamp(16px, 3vw, 40px);
+}
+.comparison-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  align-items: flex-start;
+  margin-bottom: var(--space-6);
+}
+.comparison-heading h1 {
+  margin: var(--space-2) 0;
+  font-size: clamp(24px, 3vw, 36px);
+  letter-spacing: -0.03em;
+}
+.comparison-heading p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+.comparison-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+.comparison-pane {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  overflow: hidden;
+  min-width: 0;
+}
+.comparison-pane-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  border-bottom: 1px solid var(--border);
+}
+.comparison-pane-heading > span {
+  color: var(--text-muted);
+}
+.comparison-pane-heading strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.comparison-pane-heading small {
+  margin-left: auto;
+  color: var(--text-muted);
+}
+.comparison-image {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 4 / 3;
+  padding: var(--space-3);
+  background: var(--surface-subtle);
+}
+.comparison-image img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.comparison-image p {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+@media (max-width: 760px) {
+  .comparison-heading {
+    flex-direction: column;
+  }
+  .comparison-grid {
+    grid-template-columns: 1fr;
+  }
+  .comparison-image {
+    max-height: 65vh;
+  }
+}
+/* Non-destructive source formatting: original ciphertext and downloaded bytes never change. */
+.source-with-toolbar {
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.source-toolbar {
+  min-height: 40px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 4px var(--space-3);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-subtle);
+}
+.source-toolbar > span {
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+}
+.source-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.source-actions .button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 3px 8px;
+  font-size: var(--text-xs);
+}
+.source-actions .button[aria-pressed="true"] {
+  color: var(--text);
+  background: var(--primary-tint);
+}
+.source-format-error {
+  padding: var(--space-2) var(--space-3);
+  margin: 0;
+  background: var(--surface-subtle);
+  color: var(--danger);
+  font-size: var(--text-sm);
+}
+.source-with-toolbar > .code-view {
+  flex: 1;
+  min-height: 0;
+}
+.source-with-toolbar.is-wrapped .code-body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.source-with-toolbar.is-wrapped .code-gutter {
+  display: none;
+}

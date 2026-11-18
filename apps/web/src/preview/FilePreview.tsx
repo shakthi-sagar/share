@@ -1,8 +1,10 @@
+import { AlignLeft, Braces } from "lucide-react";
 import { useEffect, useState } from "react";
 import { MarkdownPreview } from "../components/MarkdownPreview";
 import { formatBytes } from "../lib/format";
 import { CodeView } from "./CodeView";
 import { CsvView } from "./CsvView";
+import { formatSource, formatterFor, MAX_FORMAT_CHARACTERS } from "./format-source";
 import { JsonView } from "./JsonView";
 import {
   hasRenderedView,
@@ -136,7 +138,70 @@ export function SourceText({
           : kind === "csv"
             ? undefined
             : languageFor(path);
-  return <CodeView text={text} language={language} label="Source" />;
+  const [formatted, setFormatted] = useState<string | null>(null);
+  const [formatError, setFormatError] = useState<string | null>(null);
+  const [formatting, setFormatting] = useState(false);
+  const [wrap, setWrap] = useState(false);
+  const supported = formatterFor(path) !== null && text.length <= MAX_FORMAT_CHARACTERS;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset display-only formatting when source file changes.
+  useEffect(() => {
+    setFormatted(null);
+    setFormatError(null);
+  }, [text, path]);
+  return (
+    <div className={`source-with-toolbar${wrap ? " is-wrapped" : ""}`}>
+      <div className="source-toolbar">
+        <span>
+          {language ?? "Plain text"} ·{" "}
+          {formatted !== null ? "Formatted preview" : "Original source"}
+        </span>
+        <div className="source-actions">
+          {supported ? (
+            <button
+              type="button"
+              className="button button-quiet"
+              aria-pressed={formatted !== null}
+              disabled={formatting}
+              onClick={() => {
+                if (formatted !== null) {
+                  setFormatted(null);
+                  setFormatError(null);
+                  return;
+                }
+                setFormatting(true);
+                setFormatError(null);
+                void formatSource(text, path)
+                  .then(setFormatted)
+                  .catch((error: unknown) => {
+                    setFormatError(
+                      error instanceof Error ? error.message : "Unable to format this file.",
+                    );
+                  })
+                  .finally(() => setFormatting(false));
+              }}
+            >
+              <Braces size={14} aria-hidden="true" />{" "}
+              {formatting ? "Formatting…" : formatted !== null ? "Original" : "Format"}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="button button-quiet"
+            aria-pressed={wrap}
+            onClick={() => setWrap((value) => !value)}
+          >
+            <AlignLeft size={14} aria-hidden="true" /> {wrap ? "No wrap" : "Wrap lines"}
+          </button>
+        </div>
+      </div>
+      {formatError ? (
+        <p className="source-format-error" role="alert">
+          {formatError} Original source is unchanged.
+        </p>
+      ) : null}
+      <CodeView text={formatted ?? text} language={language} label="Source" />
+    </div>
+  );
 }
 
 /** Media kinds shown directly from their decrypted blob. */

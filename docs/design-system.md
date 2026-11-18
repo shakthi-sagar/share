@@ -164,6 +164,7 @@ unknown binaries) fall back to the download state.
   the file header; the workspace editor uses `Edit`, `Split`, and `Preview` tabs instead.
 - Source uses `CodeView`: a line-number gutter and highlight.js colors from the `--syntax-*`
   tokens. Highlighting stops past 300,000 characters.
+- The source viewer offers lazy-loaded, non-destructive formatting for JSON, HTML, SVG, JS/TS, CSS, Markdown, and YAML, plus a wrapping toggle. Formatting errors retain the original text. No formatted content is uploaded.
 - `SplitView` owns the resizable divider. It is a focusable separator (arrow keys, Home, End, Enter
   to reset) and keeps both panes' scroll positions proportional.
 - Mermaid fences render as diagrams with a `Show source` toggle; a syntax error shows the message
@@ -176,7 +177,8 @@ unknown binaries) fall back to the download state.
   formatting require the original file. ZIP entry decompression and total text are bounded.
 - A snapshot with multiple images opens a responsive, paginated gallery by default. Gallery
   thumbnails decrypt only when entering view and large images have a click-to-open fallback;
-  selecting a tile opens the existing full-resolution preview. Images offer a fullscreen modal
+  selecting a tile opens the existing full-resolution preview. Selecting Compare allows picking two
+  gallery images for side-by-side viewing, with a swap action and locally decrypted images. Images offer a fullscreen modal
   with bounded zoom (100–800%), pointer panning, keyboard shortcuts, an Escape close action, and
   focus restoration after closing. Previous and next buttons navigate
   through files without downloading them.

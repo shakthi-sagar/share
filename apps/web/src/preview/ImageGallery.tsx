@@ -1,8 +1,9 @@
 import type { UnlockedShare } from "@share/client";
 import { displayPath, type ManifestFile } from "@share/protocol";
-import { ArrowLeft, ArrowRight, ImageOff, Images } from "lucide-react";
+import { ArrowLeft, ArrowLeftRight, ArrowRight, ImageOff, Images, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { formatBytes } from "../lib/format";
+import { ImageCompare } from "./ImageCompare";
 import { previewKind, safeMediaType } from "./kinds";
 
 const PAGE_SIZE = 24;
@@ -19,8 +20,44 @@ export function ImageGallery({
   onSelect: (file: ManifestFile) => void;
 }): React.JSX.Element {
   const [page, setPage] = useState(0);
+  const [comparing, setComparing] = useState(false);
+  const [selection, setSelection] = useState<string[]>([]);
+  const [swapped, setSwapped] = useState(false);
+  const pair =
+    selection.length === 2 ? selection.map((id) => files.find((file) => file.id === id)) : [];
+  const first = swapped ? pair[1] : pair[0];
+  const second = swapped ? pair[0] : pair[1];
+  const toggle = (file: ManifestFile): void => {
+    if (!comparing) {
+      onSelect(file);
+      return;
+    }
+    setSelection((current) =>
+      current.includes(file.id)
+        ? current.filter((id) => id !== file.id)
+        : current.length < 2
+          ? [...current, file.id]
+          : [current[1]!, file.id],
+    );
+    setSwapped(false);
+  };
   const pages = Math.ceil(files.length / PAGE_SIZE);
   const visible = files.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  if (comparing && first && second) {
+    return (
+      <ImageCompare
+        share={share}
+        first={first}
+        second={second}
+        onClose={() => {
+          setComparing(false);
+          setSelection([]);
+          setSwapped(false);
+        }}
+        onSwap={() => setSwapped((value) => !value)}
+      />
+    );
+  }
   return (
     <section className="gallery-view" aria-label="Image gallery">
       <div className="gallery-heading">
@@ -29,13 +66,46 @@ export function ImageGallery({
           <h1>Gallery</h1>
           <p>Browse images together. Open any image to inspect it at full resolution.</p>
         </div>
-        <span className="gallery-count">
-          <Images size={16} aria-hidden="true" /> {files.length} images
-        </span>
+        <div className="gallery-toolbar">
+          <span className="gallery-count">
+            <Images size={16} aria-hidden="true" /> {files.length} images
+          </span>
+          {files.length > 1 ? (
+            <button
+              className="button button-secondary"
+              type="button"
+              aria-pressed={comparing}
+              onClick={() => {
+                setComparing((value) => !value);
+                setSelection([]);
+                setSwapped(false);
+              }}
+            >
+              {comparing ? (
+                <X size={16} aria-hidden="true" />
+              ) : (
+                <ArrowLeftRight size={16} aria-hidden="true" />
+              )}
+              {comparing ? "Cancel compare" : "Compare"}
+            </button>
+          ) : null}
+        </div>
       </div>
+      {comparing ? (
+        <p className="gallery-selection-note" role="status">
+          Select two images to compare them side by side. {selection.length} of 2 selected.
+        </p>
+      ) : null}
       <div className="gallery-grid">
         {visible.map((file) => (
-          <GalleryTile key={file.id} share={share} file={file} onSelect={() => onSelect(file)} />
+          <GalleryTile
+            key={file.id}
+            share={share}
+            file={file}
+            comparing={comparing}
+            selected={selection.includes(file.id)}
+            onSelect={() => toggle(file)}
+          />
         ))}
       </div>
       {pages > 1 ? (
@@ -72,10 +142,14 @@ function GalleryTile({
   share,
   file,
   onSelect,
+  comparing,
+  selected,
 }: {
   share: UnlockedShare;
   file: ManifestFile;
   onSelect: () => void;
+  comparing: boolean;
+  selected: boolean;
 }): React.JSX.Element {
   const ref = useRef<HTMLButtonElement>(null);
   const [visible, setVisible] = useState(false);
@@ -124,11 +198,17 @@ function GalleryTile({
     <button
       ref={ref}
       type="button"
-      className="gallery-tile"
+      className={`gallery-tile${selected ? " is-comparison-selected" : ""}`}
+      aria-pressed={comparing ? selected : undefined}
       onClick={onSelect}
       title={displayPath(file.path)}
     >
       <span className="gallery-tile-image">
+        {comparing ? (
+          <span className="gallery-select-indicator" aria-hidden="true">
+            {selected ? "✓" : "+"}
+          </span>
+        ) : null}
         {source && !error ? (
           <img src={source} alt="" loading="lazy" onError={() => setError(true)} />
         ) : error || file.size > THUMB_LIMIT_BYTES ? (
