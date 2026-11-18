@@ -11,6 +11,9 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.2-noble
+      options: --ipc=host
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
@@ -36,12 +39,8 @@ jobs:
           pnpm package:cli
       - name: Synthetic 10,000-file benchmark
         run: pnpm bench:files
-      - name: Install browsers
-        timeout-minutes: 4
-        run: pnpm exec playwright install chromium firefox webkit
-      - name: Install additional WebKit libraries
-        timeout-minutes: 8
-        run: pnpm exec playwright install-deps webkit
+      # The pinned Playwright container includes Chromium, Firefox, WebKit and their
+      # system libraries. Avoid slow, non-reproducible apt installs on hosted runners.
       - name: Provision local Cloudflare emulation
         run: |
           cp .env.example .env.development
