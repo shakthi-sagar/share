@@ -272,6 +272,11 @@ export function HtmlView({
     const frame = iframeRef.current;
     if (!frame) return;
     let activeDocument: Document | null = null;
+    let activeWindow: Window | null = null;
+    const openPath = (linkedPath: string): void => {
+      const file = files.find((item) => item.path === linkedPath);
+      if (file) onOpenFile(file);
+    };
     const handleClick = (clicked: MouseEvent): void => {
       // The clicked Element belongs to the iframe realm, not the parent's Element constructor.
       const link = (clicked.target as Element | null)?.closest?.("[data-share-path]");
@@ -279,21 +284,45 @@ export function HtmlView({
       if (!linkedPath) return;
       clicked.preventDefault();
       clicked.stopPropagation();
-      const file = files.find((item) => item.path === linkedPath);
-      if (file) onOpenFile(file);
+      openPath(linkedPath);
+    };
+    const handleHashNavigation = (): void => {
+      // Sandboxed srcdoc navigation to a fragment is browser-native (no untrusted script).
+      // This covers WebKit when it does not dispatch the document click listener above.
+      let hash = "";
+      try {
+        hash = frame.contentWindow?.location.hash ?? "";
+      } catch {
+        return;
+      }
+      if (!hash.startsWith("#share-file=")) return;
+      try {
+        openPath(decodeURIComponent(hash.slice("#share-file=".length)));
+      } catch {
+        /* malformed hash */
+      }
     };
     const bindDocument = (): void => {
       const current = frame.contentDocument;
-      if (!current || current === activeDocument) return;
-      activeDocument?.removeEventListener("click", handleClick, true);
-      activeDocument = current;
-      current.addEventListener("click", handleClick, true);
+      const win = frame.contentWindow;
+      if (current && current !== activeDocument) {
+        activeDocument?.removeEventListener("click", handleClick, true);
+        activeDocument = current;
+        current.addEventListener("click", handleClick, true);
+      }
+      // WindowProxy identity can stay stable when srcdoc replaces its underlying Window.
+      // Reattach on every iframe load so WebKit never keeps a listener on the old document.
+      activeWindow?.removeEventListener("hashchange", handleHashNavigation);
+      activeWindow = win;
+      win?.addEventListener("hashchange", handleHashNavigation);
+      handleHashNavigation();
     };
     frame.addEventListener("load", bindDocument);
     bindDocument();
     return () => {
       frame.removeEventListener("load", bindDocument);
       activeDocument?.removeEventListener("click", handleClick, true);
+      activeWindow?.removeEventListener("hashchange", handleHashNavigation);
     };
   }, [loading, files, onOpenFile]);
 
