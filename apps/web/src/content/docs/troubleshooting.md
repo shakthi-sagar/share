@@ -37,3 +37,7 @@ The original publisher's browser or CLI keeps the revocation credential. A link 
 ## Where can I report a problem?
 
 For a reproducible bug, open an issue in the [source repository](https://github.com/shakthi-sagar/share). **Do not paste full secret share links into public issues.** For a security flaw, follow the repository's private security reporting policy instead.
+
+## Refreshing asks for the key again
+
+Normally a successfully unlocked key stays in the current tab’s `sessionStorage`. Privacy settings, clearing site data, or using a new tab can require unlocking again. **Lock tab** intentionally clears it. Keep the original full link securely; session storage is not a backup.

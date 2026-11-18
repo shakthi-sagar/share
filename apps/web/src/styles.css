@@ -5116,3 +5116,24 @@ textarea:focus-visible {
     border-top: 1px solid var(--border);
   }
 }
+
+.docs-code-scroll {
+  overflow: visible;
+}
+.docs-code-scroll pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.docs-code-scroll:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* When the mobile file drawer closes, its exit animation must not intercept
+   clicks on the newly opened HTML preview or file content beneath it. */
+@media (max-width: 760px) {
+  .file-sidebar:not(.is-open),
+  .workspace-sidebar:not(.is-open) {
+    pointer-events: none;
+  }
+}

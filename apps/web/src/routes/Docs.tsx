@@ -182,7 +182,9 @@ function Markdown({ content }: { content: string }): React.JSX.Element {
                 <span>Code / Terminal</span>
                 <CopyButton value={textOf(children).trimEnd()} label="Copy code" />
               </div>
-              <pre>{children}</pre>
+              <div className="docs-code-scroll">
+                <pre>{children}</pre>
+              </div>
             </div>
           ),
           a: ({ href, children }) =>

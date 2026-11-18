@@ -171,3 +171,9 @@ background deletion normally occurs on the next hourly sweep. Abandoned uploads 
 24 hours. A sweep removes at most 2,000 shares, retrying failures on subsequent runs. Existing
 legacy non-expiring shares are **not** automatically deleted; revoke them with their original
 browser-held deletion credentials. New shares default to 24 hours and are capped at seven days by the API.
+
+## Maintenance and releases
+
+The repeatable gates are `pnpm check`, `pnpm test`, `pnpm exec biome check .`, `pnpm build`, `pnpm bench:files`, `pnpm test:browser`, `pnpm test:a11y`, and `pnpm audit --prod --audit-level high`. Browser tests require local Vite and Worker services; GitHub CI starts these using isolated Cloudflare storage.
+
+See [production hardening](docs/production-readiness.md), [security reporting](SECURITY.md), [contributing](CONTRIBUTING.md), and [release changes](CHANGELOG.md). Standalone CLI tarballs are built with `pnpm package:cli` after building the CLI.

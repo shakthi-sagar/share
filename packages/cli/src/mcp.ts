@@ -11,7 +11,7 @@ const exec = promisify(execFile);
 export async function runMcp(executable: string, origin: string, rootPath?: string): Promise<void> {
   const root = rootPath ? realpathSync(rootPath) : null;
   if (root && !statSync(root).isDirectory()) throw new Error("SHARE_MCP_ROOT must be a directory");
-  const server = new McpServer({ name: "share", version: "0.1.0" });
+  const server = new McpServer({ name: "share", version: "1.0.0-rc.1" });
 
   async function cli(args: string[]) {
     try {

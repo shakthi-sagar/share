@@ -16,10 +16,28 @@
     "smoke:deployment": "node scripts/smoke-deployment.mjs",
     "test": "pnpm -r test",
     "install:cli": "pnpm --filter @share/cli build && node scripts/install-cli.mjs",
-    "build:node": "pnpm --filter @share/api-node build"
+    "build:node": "pnpm --filter @share/api-node build",
+    "test:browser": "node tests/e2e/share-flow.mjs",
+    "test:a11y": "node tests/e2e/accessibility.mjs",
+    "bench:files": "node scripts/bench-file-tree.mjs",
+    "package:cli": "node scripts/package-cli.mjs"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.11.1",
     "@biomejs/biome": "2.5.14",
+    "@playwright/test": "1.58.2",
+    "esbuild": "0.25.0",
     "typescript": "7.0.2"
+  },
+  "pnpm": {
+    "overrides": {
+      "dompurify": "3.4.18",
+      "lodash-es": "4.18.1",
+      "undici": "7.30.1",
+      "sharp": "0.35.5",
+      "source-map-js": "1.2.2",
+      "zod": "4.6.7",
+      "vite": "8.3.8"
+    }
   }
 }

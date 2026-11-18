@@ -52,8 +52,11 @@ async function runExpirySweep(env: WorkerEnv): Promise<void> {
       new Date(started - UPLOAD_WINDOW_SECONDS * 1000).toISOString(),
     )
     .catch(() => null);
-  console.log(
+  // Failures and backlog should surface as warning/error logs for Cloudflare log alerts.
+  const log = result.failed > 0 ? console.error : result.truncated ? console.warn : console.log;
+  log(
     JSON.stringify({
+      severity: result.failed > 0 ? "error" : result.truncated ? "warning" : "info",
       message: "Expired share sweep completed",
       scanned: result.scanned,
       removed: result.removed,

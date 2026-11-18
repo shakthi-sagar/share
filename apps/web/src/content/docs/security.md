@@ -34,8 +34,7 @@ version, share ID, object ID, index, and expected plaintext length.
 
 ## Rules that must not regress
 
-- The master secret lives in the URL fragment only, never in a path, query, header, log, database,
-  or error report.
+- The master secret arrives in the URL fragment and is removed from the address bar. After successful unlock, it is kept in **tab-scoped `sessionStorage`** to survive a refresh, not in a path, query, HTTP header or server database. **Lock tab** clears it. Browser session restore can preserve session storage.
 - Only the SHA-256 hash of the encoded read credential is stored server side.
 - All object access passes through API authorization. Object storage stays private.
 - Absent, expired, incomplete, and unauthorized shares return indistinguishable not-found responses.

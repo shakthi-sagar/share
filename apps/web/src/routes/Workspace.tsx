@@ -349,6 +349,7 @@ export function WorkspaceEditor({ id }: { id: string }): React.JSX.Element {
 
       <input
         ref={fileInput}
+        aria-label="Choose files to import"
         className="visually-hidden"
         type="file"
         multiple
@@ -359,6 +360,7 @@ export function WorkspaceEditor({ id }: { id: string }): React.JSX.Element {
       />
       <input
         ref={folderInput}
+        aria-label="Choose a folder to import"
         className="visually-hidden"
         type="file"
         multiple

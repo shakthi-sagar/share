@@ -1,0 +1,31 @@
+name: CLI release bundle
+on:
+  push:
+    tags:
+      - 'v*'
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.5.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @share/cli build
+      - run: pnpm package:cli
+      - name: Verify standalone tarball installation
+        run: |
+          npm install --ignore-scripts --prefix /tmp/share-cli-install ./release/*.tgz
+          /tmp/share-cli-install/node_modules/.bin/share help >/dev/null
+      - name: Attach portable Node CLI package to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" release/*.tgz --generate-notes --title "Share $GITHUB_REF_NAME" --verify-tag

@@ -1,0 +1,30 @@
+name: Bug report
+description: Report a reproducible bug. Never paste a full share URL with its key.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "Before posting: remove secret share keys, revoke tokens, real filenames, and private URLs."
+  - type: textarea
+    id: behavior
+    attributes:
+      label: What happened?
+      description: Explain the expected and actual result.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. Create a sample share..."
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Browser, OS, or CLI version
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized logs
+      description: Remove all credentials, secret URLs, and private file paths.

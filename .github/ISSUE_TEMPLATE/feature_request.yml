@@ -1,0 +1,15 @@
+name: Feature request
+description: Suggest an improvement to Share.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: task
+    attributes:
+      label: What are you trying to accomplish?
+      description: Describe the workflow rather than just the proposed button.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Suggested solution

@@ -41,7 +41,7 @@ share status --json
 share mcp
 ```
 
-This starts a local **stdio** MCP server. Agents can check service health and inspect shares. To allow an agent to publish a path, configure `SHARE_MCP_ROOT` to the directory it is allowed to access. The root restriction matters: without it, an agent could be asked to publish unrelated personal files.
+This starts a local **stdio** MCP server. Standalone CLI tarballs are also available in GitHub Releases (Node.js 22+), without cloning the source repository. Agents can check service health and inspect shares. To allow an agent to publish a path, configure `SHARE_MCP_ROOT` to the directory it is allowed to access. The root restriction matters: without it, an agent could be asked to publish unrelated personal files.
 
 There is no account-wide cloud file browser, remote agent daemon or requirement to expose a network port for MCP.
 

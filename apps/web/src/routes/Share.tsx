@@ -12,6 +12,7 @@ import {
   Images,
   KeyRound,
   List,
+  Lock,
   LockKeyhole,
   Menu,
   Search,
@@ -38,6 +39,7 @@ import {
 } from "../lib/file-tree";
 import { formatBytes } from "../lib/format";
 import { keyFromInput } from "../lib/share-key";
+import { forgetTabShareKey, readTabShareKey, rememberTabShareKey } from "../lib/tab-share-key";
 import {
   BlobPreview,
   DownloadOnly,
@@ -61,11 +63,15 @@ import { StreamedMedia } from "../preview/StreamedMedia";
 import { CACHE_FILE_LIMIT, readShareBlob } from "../preview/share-file-cache";
 
 export function Share({ id }: { id: string }): React.JSX.Element {
-  const fragmentKey = new URLSearchParams(window.location.hash.slice(1)).get("k");
-  const [key, setKey] = useState(fragmentKey ?? "");
+  // Capture once so the successful unlock does not start another request when storage changes.
+  // Explicit link keys win over the last unlocked key for this share in this tab.
+  const [initialKey] = useState(
+    () => new URLSearchParams(window.location.hash.slice(1)).get("k") ?? readTabShareKey(id),
+  );
+  const [key, setKey] = useState(initialKey ?? "");
   const [share, setShare] = useState<UnlockedShare | null>(null);
   const [status, setStatus] = useState<"locked" | "unlocking" | "error">(
-    fragmentKey ? "unlocking" : "locked",
+    initialKey ? "unlocking" : "locked",
   );
   const [message, setMessage] = useState<string | null>(null);
 
@@ -79,8 +85,10 @@ export function Share({ id }: { id: string }): React.JSX.Element {
           id,
           key: candidate,
         });
+        rememberTabShareKey(id, candidate);
         setShare(unlocked);
       } catch (caught) {
+        if (caught instanceof ApiError && caught.status === 404) forgetTabShareKey(id);
         setStatus("error");
         setMessage(
           caught instanceof ApiError && caught.status === 404
@@ -98,16 +106,26 @@ export function Share({ id }: { id: string }): React.JSX.Element {
   );
 
   useEffect(() => {
-    if (fragmentKey) {
-      void unlock(fragmentKey);
+    if (initialKey) {
+      void unlock(initialKey);
     }
-  }, [fragmentKey, unlock]);
+  }, [unlock, initialKey]);
 
   if (share) {
-    return <ShareViewer share={share} />;
+    return (
+      <ShareViewer
+        share={share}
+        onLock={() => {
+          forgetTabShareKey(id);
+          setShare(null);
+          setKey("");
+          setStatus("locked");
+        }}
+      />
+    );
   }
 
-  const unlockingFromLink = status === "unlocking" && fragmentKey !== null;
+  const unlockingFromLink = status === "unlocking" && initialKey !== null;
 
   return (
     <div className="unlock-page">
@@ -162,7 +180,9 @@ export function Share({ id }: { id: string }): React.JSX.Element {
         )}
         <p className="unlock-note" id="key-note">
           The service receives a separate access credential derived from the key, never the key or
-          the decrypted files.
+          the decrypted files. After a successful unlock, the key is held in this tab's session
+          storage for refreshes, not in permanent local storage. Closing the tab normally clears it;
+          some browsers may restore the session when reopening closed tabs.
         </p>
       </main>
     </div>
@@ -177,7 +197,13 @@ const fileFilters = {
   source: ["code", "json", "csv"],
 };
 
-function ShareViewer({ share }: { share: UnlockedShare }): React.JSX.Element {
+function ShareViewer({
+  share,
+  onLock,
+}: {
+  share: UnlockedShare;
+  onLock: () => void;
+}): React.JSX.Element {
   const [selected, setSelected] = useState<ManifestFile | null>(share.manifest.files[0] ?? null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [fileQuery, setFileQuery] = useState("");
@@ -256,6 +282,14 @@ function ShareViewer({ share }: { share: UnlockedShare }): React.JSX.Element {
           <LockKeyhole size={13} aria-hidden="true" /> End-to-end encrypted
         </span>
         <div className="viewer-actions">
+          <button
+            type="button"
+            className="button button-quiet viewer-lock-button"
+            title="Forget this tab's key and lock the viewer"
+            onClick={onLock}
+          >
+            <Lock size={14} aria-hidden="true" /> Lock tab
+          </button>
           {imageFiles.length > 0 ? (
             <button
               className="button button-secondary viewer-gallery-toggle"

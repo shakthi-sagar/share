@@ -1,0 +1,19 @@
+name: Production uptime check
+on:
+  schedule:
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Verify production health and headers
+        run: |
+          set -euo pipefail
+          response=$(curl --fail --silent --show-error --retry 2 --max-time 15 https://share.shadster.dev/health)
+          test "$response" = '{"status":"ok"}'
+          curl -fsSI --max-time 15 https://share.shadster.dev/ | grep -qi '^content-security-policy:'
+          echo 'Health and CSP present.'

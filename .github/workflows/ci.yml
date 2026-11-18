@@ -1,0 +1,86 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.5.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Typecheck, unit tests, and formatting
+        run: |
+          pnpm exec biome check .
+          pnpm check
+          pnpm test
+      - name: Build distributables
+        run: |
+          cp .env.example .env
+          pnpm build
+          pnpm package:cli
+      - name: Synthetic 10,000-file benchmark
+        run: pnpm bench:files
+      - name: Install browsers
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
+      - name: Provision local Cloudflare emulation
+        run: |
+          cp .env.example .env.development
+          pnpm config:sync --env-file .env.development
+          pnpm --filter @share/api-cloudflare exec wrangler d1 migrations apply DB --local --config wrangler.generated.jsonc
+      - name: Start isolated local E2E services
+        run: |
+          pnpm --filter @share/api-cloudflare exec wrangler dev --config wrangler.generated.jsonc --port 8787 --ip 127.0.0.1 > /tmp/share-e2e-worker.log 2>&1 &
+          pnpm --filter @share/web exec vite --mode development --host 127.0.0.1 --port 5173 > /tmp/share-e2e-vite.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:8787/health >/dev/null && curl -fsS http://localhost:5173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/share-e2e-worker.log /tmp/share-e2e-vite.log
+          exit 1
+      - name: Full encrypted-share lifecycle on desktop and mobile viewports
+        env:
+          SHARE_E2E_BASE_URL: http://localhost:5173
+          SHARE_E2E_API_URL: http://localhost:8787
+          SHARE_E2E_BROWSERS: chromium,firefox,webkit,chromium-mobile
+        run: pnpm test:browser
+      - name: WCAG accessibility checks
+        env:
+          SHARE_E2E_BASE_URL: http://localhost:5173
+        run: pnpm test:a11y
+      - name: Collect server logs on failure
+        if: failure()
+        run: |
+          tail -100 /tmp/share-e2e-worker.log || true
+          tail -100 /tmp/share-e2e-vite.log || true
+
+  audit-dependencies:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.5.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: pnpm install --frozen-lockfile
+      - name: Block on production high and critical advisories
+        run: pnpm audit --prod --audit-level high
+      - name: Report other dependency advisories
+        continue-on-error: true
+        run: pnpm audit --audit-level moderate

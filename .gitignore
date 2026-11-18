@@ -9,3 +9,8 @@ wrangler.generated.jsonc
 coverage/
 *.log
 .DS_Store
+
+# Release tarballs and browser test artifacts
+/release/
+/test-results/
+/playwright-report/

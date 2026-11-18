@@ -69,3 +69,9 @@ Larger previews start when you choose **Load preview** or **Load player**. PDF p
 encrypted chunks as needed, within the PDF preview size limit. The PDF decoder may still fetch the entire document, depending on its layout, and can allocate a document-sized buffer. Searching PDF text can also fetch more chunks. Browser-compatible audio and video play from streamed chunks when supported.
 On browsers with a save-file picker, large downloads stream directly to the selected destination.
 When the save-file picker is unavailable, Share can hand decrypted chunks to the browser's download manager. If the browser does not support either streaming route, Share uses a temporary in-memory copy.
+
+## Refreshing an encrypted share
+
+After a successful unlock, Share remembers the decryption secret only in **this tab’s sessionStorage**. Refreshing reopens the share without requiring the key. It is not kept in localStorage, IndexedDB, or cookies. Some browsers restore tab sessions after closing and reopening.
+
+Use **Lock tab** at the top of the viewer to forget the key and require a fresh key after reload. This does not revoke the link for others.
