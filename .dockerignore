@@ -1,0 +1,8 @@
+.git
+.env
+.env.*
+**/node_modules
+**/dist
+**/.wrangler
+apps/api-cloudflare/wrangler.generated.jsonc
+data

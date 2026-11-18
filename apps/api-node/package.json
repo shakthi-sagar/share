@@ -1,0 +1,22 @@
+{
+  "name": "@share/api-node",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --external:@aws-sdk/* --target=node22 --outfile=dist/server.mjs",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "start": "node --enable-source-maps dist/server.mjs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.1171.0",
+    "@hono/node-server": "2.1.9",
+    "@share/protocol": "workspace:*",
+    "@share/server": "workspace:*",
+    "hono": "4.13.9"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "esbuild": "^0.25.0"
+  }
+}

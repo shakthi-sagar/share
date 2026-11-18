@@ -44,6 +44,46 @@ export function PdfView({
   const [document, setDocument] = useState<PDFDocumentProxy | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
+  const [pageInput, setPageInput] = useState("1");
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState({ query: "", run: 0 });
+  const [matches, setMatches] = useState<number[]>([]);
+  const [examined, setExamined] = useState(0);
+  const [matchIndex, setMatchIndex] = useState(0);
+  const [searchError, setSearchError] = useState(false);
+  const pages = useRef<HTMLDivElement>(null);
+
+  function jump(page: number): void {
+    if (!document || !Number.isInteger(page) || page < 1 || page > document.numPages) return;
+    setPageInput(String(page));
+    pages.current?.querySelector(`[data-pdf-page="${page}"]`)?.scrollIntoView({ block: "start" });
+  }
+
+  useEffect(() => {
+    if (!document || !search.query) return;
+    let active = true;
+    const query = search.query.toLocaleLowerCase();
+    void (async () => {
+      for (let pageNumber = 1; active && pageNumber <= document.numPages; pageNumber++) {
+        const page = await document.getPage(pageNumber);
+        if (!active) return;
+        const text = await page.getTextContent();
+        if (!active) return;
+        const content = text.items
+          .map((item) => ("str" in item ? item.str : ""))
+          .join(" ")
+          .replace(/\s+/gu, " ")
+          .toLocaleLowerCase();
+        if (content.includes(query)) setMatches((list) => [...list, pageNumber]);
+        setExamined(pageNumber);
+      }
+    })().catch(() => {
+      if (active) setSearchError(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, [document, search]);
 
   useEffect(() => {
     let active = true;
@@ -146,7 +186,85 @@ export function PdfView({
           </button>
         </div>
       </div>
-      <div className="pdf-pages">
+      <div className="pdf-toolbar">
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            jump(Number(pageInput));
+          }}
+        >
+          <label>
+            Page{" "}
+            <input
+              type="number"
+              min={1}
+              max={document.numPages}
+              value={pageInput}
+              onChange={(event) => setPageInput(event.currentTarget.value)}
+            />
+          </label>{" "}
+          <button type="submit">Go</button>
+        </form>
+        <form
+          aria-label="Search PDF"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setMatches([]);
+            setExamined(0);
+            setMatchIndex(0);
+            setSearchError(false);
+            setSearch(({ run }) => ({
+              query: searchInput.trim().replace(/\s+/gu, " "),
+              run: run + 1,
+            }));
+          }}
+        >
+          <input
+            type="search"
+            aria-label="Search PDF text"
+            placeholder="Search PDF"
+            value={searchInput}
+            onChange={(event) => setSearchInput(event.currentTarget.value)}
+          />{" "}
+          <button type="submit">Find</button>{" "}
+          {search.query ? (
+            <button
+              type="button"
+              onClick={() => {
+                setMatches([]);
+                setSearchInput("");
+                setSearch({ query: "", run: 0 });
+              }}
+            >
+              Clear
+            </button>
+          ) : null}
+        </form>
+        {search.query ? (
+          <div>
+            <button
+              type="button"
+              disabled={!matches.length}
+              onClick={() => {
+                const page = matches[matchIndex % matches.length];
+                if (page !== undefined) jump(page);
+                setMatchIndex((index) => (index + 1) % matches.length);
+              }}
+            >
+              Next matching page
+            </button>{" "}
+            <span role="status">
+              {matches.length} matching {matches.length === 1 ? "page" : "pages"}
+              {searchError
+                ? " · Search ended early"
+                : examined < document.numPages
+                  ? ` · Searched ${examined} of ${document.numPages}`
+                  : ""}
+            </span>
+          </div>
+        ) : null}
+      </div>
+      <div className="pdf-pages" ref={pages}>
         {pageNumbers(document.numPages).map((pageNumber) => (
           <PdfPage key={pageNumber} document={document} pageNumber={pageNumber} zoom={zoom} />
         ))}
@@ -221,6 +339,7 @@ function PdfPage({
     <div
       ref={holder}
       className="pdf-page"
+      data-pdf-page={pageNumber}
       style={{ width: `${zoom * 100}%`, aspectRatio: `1 / ${aspect}` }}
     >
       {visible ? <canvas ref={canvas} aria-label={`Page ${pageNumber}`} role="img" /> : null}

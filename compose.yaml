@@ -1,0 +1,41 @@
+services:
+  share:
+    build:
+      context: .
+      args:
+        SHARE_SELF_HOST_ORIGIN: ${SHARE_SELF_HOST_ORIGIN:-http://localhost:8787}
+        SHARE_SELF_HOST_MAX_BYTES: ${SHARE_SELF_HOST_MAX_BYTES:-2147483648}
+    environment:
+      SHARE_NODE_ORIGIN: ${SHARE_SELF_HOST_ORIGIN:-http://localhost:8787}
+      SHARE_NODE_MAX_SHARE_BYTES: ${SHARE_SELF_HOST_MAX_BYTES:-2147483648}
+      SHARE_S3_ENDPOINT: http://storage:8333
+      SHARE_S3_BUCKET: share-blobs
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: ${SHARE_STORAGE_ACCESS_KEY:-share-local}
+      AWS_SECRET_ACCESS_KEY: ${SHARE_STORAGE_SECRET_KEY:-local-development-only}
+    ports:
+      - "127.0.0.1:${SHARE_SELF_HOST_PORT:-8787}:8787"
+    volumes:
+      - metadata:/app/data
+    depends_on:
+      storage:
+        condition: service_healthy
+    restart: unless-stopped
+  storage:
+    image: chrislusf/seaweedfs@sha256:4b42c212543a0acd4c0e675215ecdcaf62a186ef98def76c7e12701871222d15
+    command: ["mini", "-dir=/data"]
+    environment:
+      S3_BUCKET: share-blobs
+      AWS_ACCESS_KEY_ID: ${SHARE_STORAGE_ACCESS_KEY:-share-local}
+      AWS_SECRET_ACCESS_KEY: ${SHARE_STORAGE_SECRET_KEY:-local-development-only}
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 8333"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+    volumes:
+      - storage:/data
+    restart: unless-stopped
+volumes:
+  metadata:
+  storage:

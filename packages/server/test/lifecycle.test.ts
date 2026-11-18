@@ -97,6 +97,15 @@ describe("share storage lifecycle", () => {
     expect([first, second]).toHaveLength(2);
   });
 
+  it("moves past a failed share within the same sweep", async () => {
+    const [first = "", second = ""] = [await publish(60), await publish(60)].sort();
+    blobs.failingPrefixes.add(sharePrefix(first));
+    const result = await purgeExpiredShares(metadata, blobs, afterExpiry, { batchSize: 1 });
+    expect(result).toEqual({ scanned: 2, removed: 1, failed: 1, truncated: false });
+    expect(metadata.records.has(first)).toBe(true);
+    expect(metadata.records.has(second)).toBe(false);
+  });
+
   it("does nothing when a sweep is not allowed to run", async () => {
     await publish(60);
     const result = await purgeExpiredShares(metadata, blobs, afterExpiry, { limit: 0 });

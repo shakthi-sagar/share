@@ -12,8 +12,10 @@
     "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@share/client": "workspace:*",
-    "@share/protocol": "workspace:*"
+    "@share/protocol": "workspace:*",
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",

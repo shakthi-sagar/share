@@ -6,6 +6,7 @@ import type { CompleteShareRequest } from "@share/protocol";
 import type {
   BlobStore,
   MetadataStore,
+  ShareCursor,
   ShareRecord,
   StoredBlob,
   UploadLimits,
@@ -69,16 +70,26 @@ export class MemoryMetadataStore implements MetadataStore {
     expiredAt: string,
     abandonedBefore: string,
     limit: number,
-  ): Promise<string[]> {
+    after?: ShareCursor,
+  ): Promise<ShareCursor[]> {
     return [...this.records.values()]
       .filter(
         (record) =>
           (record.expiresAt !== null && record.expiresAt <= expiredAt) ||
           (record.state === "uploading" && record.createdAt <= abandonedBefore),
       )
-      .sort((left, right) => left.createdAt.localeCompare(right.createdAt))
+      .filter(
+        (record) =>
+          !after ||
+          record.createdAt > after.createdAt ||
+          (record.createdAt === after.createdAt && record.id > after.id),
+      )
+      .sort((left, right) => {
+        if (left.createdAt !== right.createdAt) return left.createdAt < right.createdAt ? -1 : 1;
+        return left.id < right.id ? -1 : 1;
+      })
       .slice(0, limit)
-      .map((record) => record.id);
+      .map(({ id, createdAt }) => ({ id, createdAt }));
   }
 }
 

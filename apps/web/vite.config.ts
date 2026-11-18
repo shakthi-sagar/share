@@ -15,6 +15,7 @@ export default defineConfig(({ mode }) => {
   return {
     envDir: repositoryRoot,
     envPrefix: "SHARE_PUBLIC_",
+    worker: { format: "es" },
     plugins: [react(), securityHeaders(apiUrl.origin), pdfjsAssets()],
     build: {
       // Mermaid layouts, highlight.js, and pdf.js are large, but each loads only when a file needs
@@ -36,20 +37,22 @@ export default defineConfig(({ mode }) => {
 function securityHeaders(apiOrigin: string): Plugin {
   const csp = [
     "default-src 'none'",
-    "script-src 'self'",
+    "script-src 'self' 'wasm-unsafe-eval'",
     // Inline styles are needed by Mermaid's SVG output and by the page's own CSS inside a
     // sandboxed HTML preview, which inherits this policy. They cannot run script, and every way
     // CSS could send data out (images, fonts, connections) stays restricted below.
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' blob: data:",
     "media-src 'self' blob:",
-    "font-src 'self'",
+    // Local bundle fonts and embedded model resources use browser-local URLs.
+    "font-src 'self' blob:",
     // pdf.js decodes documents in a worker loaded from this origin.
     "worker-src 'self'",
-    `connect-src 'self' ${apiOrigin}`,
+    `connect-src 'self' blob: data: ${apiOrigin}`,
     "manifest-src 'self'",
     "base-uri 'none'",
     "form-action 'none'",
+    "frame-src 'self'",
     "frame-ancestors 'none'",
     "object-src 'none'",
   ].join("; ");

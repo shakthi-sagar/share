@@ -16,7 +16,9 @@ export interface BundleFileNode {
   file: ManifestFile;
 }
 
-export function buildFileTree(files: ManifestFile[]): BundleTreeNode[] {
+export type FileSort = "name" | "largest" | "smallest";
+
+export function buildFileTree(files: ManifestFile[], sort: FileSort = "name"): BundleTreeNode[] {
   const root: BundleTreeNode[] = [];
   const directories = new Map<string, BundleDirectoryNode>();
 
@@ -45,7 +47,7 @@ export function buildFileTree(files: ManifestFile[]): BundleTreeNode[] {
     });
   }
 
-  sortNodes(root);
+  sortNodes(root, sort);
   return root;
 }
 
@@ -55,12 +57,16 @@ export function directoryPaths(nodes: BundleTreeNode[]): string[] {
   );
 }
 
-function sortNodes(nodes: BundleTreeNode[]): void {
+function sortNodes(nodes: BundleTreeNode[], sort: FileSort): void {
   nodes.sort((left, right) => {
     if (left.kind !== right.kind) return left.kind === "directory" ? -1 : 1;
+    if (left.kind === "file" && right.kind === "file" && sort !== "name") {
+      const difference = left.file.size - right.file.size;
+      if (difference) return sort === "largest" ? -difference : difference;
+    }
     return left.name.localeCompare(right.name, undefined, { numeric: true, sensitivity: "base" });
   });
   for (const node of nodes) {
-    if (node.kind === "directory") sortNodes(node.children);
+    if (node.kind === "directory") sortNodes(node.children, sort);
   }
 }

@@ -1,6 +1,6 @@
 import { sharePrefix } from "./paths";
 import { requireDeleteAuthorization, UPLOAD_WINDOW_SECONDS } from "./share-service";
-import type { BlobStore, MetadataStore } from "./types";
+import type { BlobStore, MetadataStore, ShareCursor } from "./types";
 
 /** Ids listed per metadata query. Keeps each D1 statement small. */
 export const EXPIRED_BATCH_SIZE = 200;
@@ -63,15 +63,18 @@ export async function purgeExpiredShares(
     return result;
   }
 
+  let after: ShareCursor | undefined;
   while (result.scanned < limit) {
     const pageSize = Math.min(batchSize, limit - result.scanned);
-    const ids = await metadata.listPurgeable(expiredAt, abandonedBefore, pageSize);
-    if (ids.length === 0) {
+    const page = await metadata.listPurgeable(expiredAt, abandonedBefore, pageSize, after);
+    if (page.length === 0) {
       return result;
     }
-    result.scanned += ids.length;
+    result.scanned += page.length;
 
-    for (const id of ids) {
+    for (const item of page) {
+      after = item;
+      const { id } = item;
       try {
         await blobs.removePrefix(sharePrefix(id));
         await metadata.remove(id);
@@ -82,7 +85,7 @@ export async function purgeExpiredShares(
       }
     }
 
-    if (ids.length < pageSize) {
+    if (page.length < pageSize) {
       return result;
     }
   }

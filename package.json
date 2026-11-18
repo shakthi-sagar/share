@@ -14,7 +14,9 @@
     "format": "biome format --write .",
     "lint": "biome lint .",
     "smoke:deployment": "node scripts/smoke-deployment.mjs",
-    "test": "pnpm -r test"
+    "test": "pnpm -r test",
+    "install:cli": "pnpm --filter @share/cli build && node scripts/install-cli.mjs",
+    "build:node": "pnpm --filter @share/api-node build"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",

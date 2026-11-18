@@ -3,6 +3,7 @@ import { displayPath, type ManifestFile } from "@share/protocol";
 import { ArrowLeft, ArrowLeftRight, ArrowRight, ImageOff, Images, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { formatBytes } from "../lib/format";
+import { GalleryReview, type Notes } from "./GalleryReview";
 import { ImageCompare } from "./ImageCompare";
 import { previewKind, safeMediaType } from "./kinds";
 import { CACHE_FILE_LIMIT, readShareBlob } from "./share-file-cache";
@@ -14,12 +15,17 @@ export function ImageGallery({
   share,
   files,
   onSelect,
+  notes,
+  onNotesChange,
 }: {
   share: UnlockedShare;
   files: ManifestFile[];
+  notes: Notes;
+  onNotesChange: React.Dispatch<React.SetStateAction<Notes>>;
   onSelect: (file: ManifestFile) => void;
 }): React.JSX.Element {
   const [page, setPage] = useState(0);
+  const [review, setReview] = useState(false);
   const [comparing, setComparing] = useState(false);
   const [selection, setSelection] = useState<string[]>([]);
   const [swapped, setSwapped] = useState(false);
@@ -62,14 +68,17 @@ export function ImageGallery({
     <section className="gallery-view" aria-label="Image gallery">
       <div className="gallery-heading">
         <div>
-          <span className="eyebrow">Snapshot images</span>
           <h1>Gallery</h1>
-          <p>Browse images together. Open any image to inspect it at full resolution.</p>
         </div>
         <div className="gallery-toolbar">
           <span className="gallery-count">
             <Images size={16} aria-hidden="true" /> {files.length} images
           </span>
+          {files.length ? (
+            <button className="button button-primary" type="button" onClick={() => setReview(true)}>
+              Slideshow and notes
+            </button>
+          ) : null}
           {files.length > 1 ? (
             <button
               className="button button-secondary"
@@ -131,9 +140,26 @@ export function ImageGallery({
           </button>
         </nav>
       ) : null}
-      <p className="gallery-note">
-        Previews decrypt locally as they enter view. The server never sees your images.
-      </p>
+      {review ? (
+        <GalleryReview
+          share={share}
+          files={files}
+          notes={notes}
+          onNote={(fileId, note) =>
+            onNotesChange((current) => ({
+              ...current,
+              [fileId]: [...(current[fileId] ?? []), note],
+            }))
+          }
+          onRemove={(fileId, noteId) =>
+            onNotesChange((current) => ({
+              ...current,
+              [fileId]: (current[fileId] ?? []).filter((note) => note.id !== noteId),
+            }))
+          }
+          onClose={() => setReview(false)}
+        />
+      ) : null}
     </section>
   );
 }

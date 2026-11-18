@@ -1,7 +1,12 @@
-import { purgeExpiredShares } from "@share/server";
-import { D1MetadataStore } from "./adapters/d1-metadata";
+import {
+  type ApiServices,
+  createApi,
+  type LimitedAction,
+  purgeExpiredShares,
+  SqlMetadataStore,
+  UPLOAD_WINDOW_SECONDS,
+} from "@share/server";
 import { R2BlobStore } from "./adapters/r2-blobs";
-import { type ApiServices, createApi, type LimitedAction } from "./app";
 
 type WorkerEnv = Env & {
   SHARE_ALLOWED_ORIGINS: string;
@@ -11,10 +16,11 @@ type WorkerEnv = Env & {
 
 const app = createApi<WorkerEnv>(
   (env): ApiServices => ({
-    metadata: new D1MetadataStore(env.DB),
+    metadata: new SqlMetadataStore(env.DB),
     blobs: new R2BlobStore(env.BLOBS),
     allowedOrigins: env.SHARE_ALLOWED_ORIGINS.split(",").map((origin) => origin.trim()),
     maxShareBytes: positiveInteger("SHARE_MAX_SHARE_BYTES", env.SHARE_MAX_SHARE_BYTES),
+    clientAddress: (request) => request.headers.get("CF-Connecting-IP") ?? "unknown",
     allow: async (action, key) => (await limiter(env, action).limit({ key })).success,
   }),
 );
@@ -38,7 +44,14 @@ function positiveInteger(name: string, value: string): number {
  */
 async function runExpirySweep(env: WorkerEnv): Promise<void> {
   const started = Date.now();
-  const result = await purgeExpiredShares(new D1MetadataStore(env.DB), new R2BlobStore(env.BLOBS));
+  const metadata = new SqlMetadataStore(env.DB);
+  const result = await purgeExpiredShares(metadata, new R2BlobStore(env.BLOBS), new Date(started));
+  const retention = await metadata
+    .retentionStats(
+      new Date(started).toISOString(),
+      new Date(started - UPLOAD_WINDOW_SECONDS * 1000).toISOString(),
+    )
+    .catch(() => null);
   console.log(
     JSON.stringify({
       message: "Expired share sweep completed",
@@ -46,6 +59,7 @@ async function runExpirySweep(env: WorkerEnv): Promise<void> {
       removed: result.removed,
       failed: result.failed,
       truncated: result.truncated,
+      retention,
       durationMs: Date.now() - started,
     }),
   );

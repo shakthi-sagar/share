@@ -15,9 +15,10 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { ActionDialog } from "../components/ActionDialog";
 import { SharePublisher } from "../components/SharePublisher";
+import { SidebarResize } from "../components/SidebarResize";
 import { formatBytes } from "../lib/format";
 import { BlobPreview, RenderedText, useWideLayout } from "../preview/FilePreview";
 import { KindIcon } from "../preview/KindIcon";
@@ -58,6 +59,7 @@ export function WorkspaceEditor({ id }: { id: string }): React.JSX.Element {
   const [message, setMessage] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(280);
   const [dialog, setDialog] = useState<WorkspaceDialog>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
@@ -251,7 +253,10 @@ export function WorkspaceEditor({ id }: { id: string }): React.JSX.Element {
         </div>
       </header>
 
-      <div className="workspace-body">
+      <div
+        className="workspace-body"
+        style={{ "--file-sidebar-width": `${sidebarWidth}px` } as CSSProperties}
+      >
         <aside
           className={`workspace-sidebar ${drawerOpen ? "is-open" : ""}${
             treeDrag.isRootTarget ? " is-drop-root" : ""
@@ -301,6 +306,7 @@ export function WorkspaceEditor({ id }: { id: string }): React.JSX.Element {
               })
             }
           />
+          <SidebarResize width={sidebarWidth} onResize={setSidebarWidth} />
         </aside>
 
         {drawerOpen ? (

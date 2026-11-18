@@ -9,10 +9,12 @@ import {
   FolderOpen,
   Pencil,
   ShieldCheck,
+  Terminal,
   Trash2,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActionDialog } from "../components/ActionDialog";
+import { CopyButton } from "../components/CopyButton";
 import { API_BASE_URL } from "../lib/config";
 import { describeShareError } from "../lib/errors";
 import { formatBytes } from "../lib/format";
@@ -130,83 +132,93 @@ export function Home(): React.JSX.Element {
 
   return (
     <main className="home-shell workspace-home">
-      <section className="workspace-intro">
-        <p className="eyebrow">End-to-end encrypted sharing</p>
-        <h1>A local workspace. An encrypted link.</h1>
-        <p>
-          Organize files in this browser, then publish an immutable snapshot only when it is ready.
-        </p>
-      </section>
-
-      <section className="workspace-launch" aria-labelledby="start-heading">
-        <div className="workspace-launch-heading">
-          <div>
-            <h2 id="start-heading">New workspace</h2>
-            <p>Nothing is uploaded until you choose Share.</p>
-          </div>
-        </div>
-
-        <section
-          className={`workspace-dropzone ${dragging ? "is-dragging" : ""}`}
-          aria-label="Drop files to create a workspace"
-          onDragEnter={(event) => {
-            event.preventDefault();
-            setDragging(true);
-          }}
-          onDragOver={(event) => event.preventDefault()}
-          onDragLeave={(event) => {
-            if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
-            setDragging(false);
-          }}
-          onDrop={(event) => {
-            event.preventDefault();
-            setDragging(false);
-            if (event.dataTransfer.files.length > 0) {
-              void createFromFiles(event.dataTransfer.files, false);
-            }
-          }}
-        >
-          <span className="dropzone-symbol" aria-hidden="true">
-            <FileUp size={22} />
-          </span>
-          <div>
-            <strong>Drop files here</strong>
-            <span>or choose how to start</span>
-          </div>
+      <div className="home-start-grid">
+        <section className="workspace-intro">
+          <p className="eyebrow">
+            <span className="signal-dot" /> End-to-end encryption
+          </p>
+          <h1>Share files with encrypted links.</h1>
+          <p>
+            Assemble a workspace, publish a snapshot, and send one link that expires on your
+            schedule.
+          </p>
         </section>
 
-        <div className="workspace-launch-actions">
-          <button
-            className="button button-primary"
-            type="button"
-            disabled={busy}
-            onClick={() => fileInput.current?.click()}
-          >
-            <FileUp size={15} /> Choose files
-          </button>
-          <button
-            className="button button-secondary"
-            type="button"
-            disabled={busy}
-            onClick={() => folderInput.current?.click()}
-          >
-            <FolderInput size={15} /> Choose folder
-          </button>
-          <button
-            className="button button-quiet"
-            type="button"
-            disabled={busy}
-            onClick={() => void openNewWorkspace(createWorkspace())}
-          >
-            <FilePlus2 size={15} /> Start empty
-          </button>
-        </div>
+        <section className="workspace-launch" aria-labelledby="start-heading">
+          <div className="workspace-launch-heading">
+            <div>
+              <h2 id="start-heading">New workspace</h2>
+              <p>Start with files or a folder.</p>
+            </div>
+          </div>
 
-        <p className="workspace-launch-note">
-          <ShieldCheck size={14} aria-hidden="true" /> Files stay in IndexedDB on this device. A
-          published snapshot is encrypted in this browser before upload.
-        </p>
-      </section>
+          <section
+            className={`workspace-dropzone ${dragging ? "is-dragging" : ""}`}
+            aria-label="Drop files to create a workspace"
+            onDragEnter={(event) => {
+              event.preventDefault();
+              setDragging(true);
+            }}
+            onDragOver={(event) => event.preventDefault()}
+            onDragLeave={(event) => {
+              if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+              setDragging(false);
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              setDragging(false);
+              if (event.dataTransfer.files.length > 0) {
+                void createFromFiles(event.dataTransfer.files, false);
+              }
+            }}
+          >
+            <span className="dropzone-symbol" aria-hidden="true">
+              <FileUp size={22} />
+            </span>
+            <div>
+              <strong>Drop files here</strong>
+              <span>or choose how to start</span>
+            </div>
+          </section>
+
+          <div className="workspace-launch-actions">
+            <button
+              className="button button-primary"
+              type="button"
+              disabled={busy}
+              onClick={() => fileInput.current?.click()}
+            >
+              <FileUp size={15} /> Choose files
+            </button>
+            <button
+              className="button button-secondary"
+              type="button"
+              disabled={busy}
+              onClick={() => folderInput.current?.click()}
+            >
+              <FolderInput size={15} /> Choose folder
+            </button>
+            <button
+              className="button button-quiet"
+              type="button"
+              disabled={busy}
+              onClick={() => void openNewWorkspace(createWorkspace())}
+            >
+              <FilePlus2 size={15} /> Start empty
+            </button>
+          </div>
+
+          <p className="workspace-launch-note">
+            <ShieldCheck size={14} aria-hidden="true" /> Your files stay on this device until you
+            publish.
+          </p>
+        </section>
+      </div>
+      <div className="home-command">
+        <Terminal size={17} aria-hidden="true" />
+        <code>share put ./folder --expires 1d</code>
+        <CopyButton value="share put ./folder --expires 1d" label="Copy command" />
+      </div>
 
       <section className="recent-workspaces" aria-labelledby="recent-heading">
         <div className="section-heading workspace-library-heading">

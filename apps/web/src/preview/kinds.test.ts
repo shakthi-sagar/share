@@ -24,8 +24,10 @@ describe("preview kinds", () => {
       ["LICENSE", "", "text"],
       ["server.log", "", "text"],
       ["mystery", "text/x-custom", "text"],
-      ["photo.heic", "image/heic", "binary"],
-      ["archive.zip", "application/zip", "binary"],
+      ["photo.heic", "image/heic", "raster"],
+      ["archive.zip", "application/zip", "archive"],
+      ["triangle.glb", "", "model"],
+      ["photo.tiff", "", "raster"],
       ["unknown", "", "binary"],
     ];
     for (const [path, mime, kind] of cases) {

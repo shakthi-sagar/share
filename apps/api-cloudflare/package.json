@@ -14,8 +14,7 @@
   },
   "dependencies": {
     "@share/protocol": "workspace:*",
-    "@share/server": "workspace:*",
-    "hono": "4.13.9"
+    "@share/server": "workspace:*"
   },
   "devDependencies": {
     "@share/client": "workspace:*",

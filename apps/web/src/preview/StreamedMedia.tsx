@@ -1,6 +1,7 @@
 import type { UnlockedShare } from "@share/client";
 import type { ManifestFile } from "@share/protocol";
 import { useEffect, useState } from "react";
+import { fileStreamController } from "./file-stream-worker";
 import { safeMediaType } from "./kinds";
 import { MediaPlayer } from "./MediaViews";
 
@@ -65,30 +66,6 @@ function mediaReader(share: UnlockedShare, file: ManifestFile, signal: AbortSign
   };
 }
 
-async function mediaController(): Promise<ServiceWorker> {
-  const workers = navigator.serviceWorker;
-  await workers.register("/share-media-worker.js");
-  if (workers.controller?.scriptURL === new URL("/share-media-worker.js", location.href).href) {
-    return workers.controller;
-  }
-
-  return new Promise((resolve, reject) => {
-    const timeout = window.setTimeout(() => {
-      workers.removeEventListener("controllerchange", changed);
-      reject(new Error("Streaming is unavailable"));
-    }, 8_000);
-    function changed(): void {
-      const controller = workers.controller;
-      if (controller?.scriptURL !== new URL("/share-media-worker.js", location.href).href) return;
-      clearTimeout(timeout);
-      workers.removeEventListener("controllerchange", changed);
-      resolve(controller);
-    }
-    workers.addEventListener("controllerchange", changed);
-    changed();
-  });
-}
-
 export function StreamedMedia({
   share,
   file,
@@ -149,7 +126,7 @@ export function StreamedMedia({
       }
     }
     workers.addEventListener("message", serve);
-    void mediaController()
+    void fileStreamController()
       .then(() => {
         if (!abort.signal.aborted) setUrl(`/.share-media/${id}`);
       })

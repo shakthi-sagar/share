@@ -250,7 +250,10 @@ export function HtmlView({
         setStats({ loaded: result.loaded, skipped: result.skipped });
       })
       .catch(() => {
-        if (!cancelled) setStats({ loaded: 0, skipped: 0 });
+        if (!cancelled) {
+          setRendered("");
+          setStats({ loaded: 0, skipped: 0 });
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -280,7 +283,7 @@ export function HtmlView({
             const doc = event.currentTarget.contentDocument;
             doc?.addEventListener("click", (clicked) => {
               const element = clicked.target as Element | null;
-              const link = element?.closest?.("a[data-share-path]");
+              const link = element?.closest?.("[data-share-path]");
               const path = link?.getAttribute("data-share-path");
               if (!path) return;
               clicked.preventDefault();

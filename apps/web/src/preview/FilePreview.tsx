@@ -1,7 +1,8 @@
 import { AlignLeft, Braces } from "lucide-react";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { MarkdownPreview } from "../components/MarkdownPreview";
 import { formatBytes } from "../lib/format";
+import { ArchiveView } from "./ArchiveView";
 import { CodeView } from "./CodeView";
 import { CsvView } from "./CsvView";
 import { formatSource, formatterFor, MAX_FORMAT_CHARACTERS } from "./format-source";
@@ -21,6 +22,9 @@ import {
 import { FontView, HtmlView, ImageView, MediaView, SvgView } from "./MediaViews";
 import { OfficeView } from "./OfficeView";
 import { PdfView } from "./PdfView";
+import { RasterView } from "./RasterView";
+
+const ModelView = lazy(() => import("./ModelView"));
 
 export type PreviewMode = "rendered" | "source" | "split";
 
@@ -229,6 +233,16 @@ export function BlobPreview({
       return <ImageView blob={blob} type={type} name={name} />;
     case "pdf":
       return <PdfView source={blob} name={name} />;
+    case "archive":
+      return <ArchiveView blob={blob} />;
+    case "raster":
+      return <RasterView blob={blob} path={path} name={name} />;
+    case "model":
+      return (
+        <Suspense fallback={<div className="content-state">Preparing 3D preview…</div>}>
+          <ModelView blob={blob} path={path} />
+        </Suspense>
+      );
     case "office":
       return <OfficeView blob={blob} path={path} />;
     case "audio":

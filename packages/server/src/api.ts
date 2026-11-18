@@ -5,22 +5,20 @@ import {
   MAX_MANIFEST_CIPHERTEXT_BYTES,
   ProtocolError,
 } from "@share/protocol";
-import {
-  type BlobStore,
-  chunkObjectKey,
-  completeShare,
-  createShare,
-  deleteShare,
-  type MetadataStore,
-  manifestObjectKey,
-  requireReadAuthorization,
-  requireUploadAuthorization,
-  reserveUpload,
-  ServiceError,
-} from "@share/server";
 import { type Context, Hono } from "hono";
 import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
+import { ServiceError } from "./errors";
+import { deleteShare } from "./lifecycle";
+import { chunkObjectKey, manifestObjectKey } from "./paths";
+import {
+  completeShare,
+  createShare,
+  requireReadAuthorization,
+  requireUploadAuthorization,
+  reserveUpload,
+} from "./share-service";
+import type { BlobStore, MetadataStore } from "./types";
 
 /** Actions that are rate limited per client address. */
 export type LimitedAction = "create" | "upload";
@@ -33,6 +31,7 @@ export interface ApiServices {
   maxShareBytes: number;
   /** Resolves false when `key` has exceeded the rate limit for `action`. */
   allow(action: LimitedAction, key: string): Promise<boolean>;
+  clientAddress?(request: Request): string;
 }
 
 type ApiEnv<Bindings extends object> = {
@@ -68,8 +67,10 @@ export function createApi<Bindings extends object>(
   app.post("/v1/shares", async (context) => {
     const { metadata } = context.var.services;
     await requireWithinLimit(context, "create");
-    const input = createShareRequestSchema.parse(await context.req.json());
-    const result = await createShare(metadata, input);
+    const input = createShareRequestSchema.parse(await readJson(context.req.raw));
+    const result = await createShare(metadata, {
+      expiresInSeconds: Math.min(input.expiresInSeconds ?? 86_400, 604_800),
+    });
     return context.json(result, 201);
   });
 
@@ -108,7 +109,7 @@ export function createApi<Bindings extends object>(
     if (!(await blobs.exists(manifestObjectKey(shareId)))) {
       throw new ServiceError(409, "MANIFEST_MISSING", "Upload the encrypted manifest first");
     }
-    const completion = completeShareRequestSchema.parse(await context.req.json());
+    const completion = completeShareRequestSchema.parse(await readJson(context.req.raw));
     await completeShare(metadata, shareId, completion);
     return context.body(null, 204);
   });
@@ -173,7 +174,7 @@ export function createApi<Bindings extends object>(
         message: "Unhandled API error",
         method: context.req.method,
         route: context.req.routePath,
-        error: error instanceof Error ? error.message : String(error),
+        errorType: error.name,
       }),
     );
     return context.json(
@@ -193,7 +194,7 @@ async function requireWithinLimit<Bindings extends object>(
   context: Context<ApiEnv<Bindings>>,
   action: LimitedAction,
 ): Promise<void> {
-  const address = context.req.header("CF-Connecting-IP") ?? "unknown";
+  const address = context.var.services.clientAddress?.(context.req.raw) ?? "unknown";
   if (!(await context.var.services.allow(action, address))) {
     throw new ServiceError(429, "RATE_LIMITED", "Too many requests. Try again shortly.");
   }
@@ -215,14 +216,35 @@ async function boundedBody(request: Request, maximumBytes: number): Promise<Arra
     throw new ServiceError(413, "PAYLOAD_TOO_LARGE", "Encrypted payload is too large");
   }
 
-  // Each encrypted part is intentionally bounded to roughly 4 MiB. Buffering one part lets us
-  // verify its actual size and gives R2 a body with a known length. The client still processes
-  // arbitrarily large files as independent chunks.
-  const body = await request.arrayBuffer();
-  if (body.byteLength > maximumBytes) {
-    throw new ServiceError(413, "PAYLOAD_TOO_LARGE", "Encrypted payload is too large");
+  // Count bytes as they arrive. A missing or misleading Content-Length cannot bypass the limit.
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let length = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      length += value.byteLength;
+      if (length > maximumBytes) {
+        void reader.cancel().catch(() => {});
+        throw new ServiceError(413, "PAYLOAD_TOO_LARGE", "Encrypted payload is too large");
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
   }
-  return body;
+  const bytes = new Uint8Array(length);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes.buffer;
+}
+
+async function readJson(request: Request): Promise<unknown> {
+  return JSON.parse(new TextDecoder().decode(await boundedBody(request, 16_384)));
 }
 
 function parseChunkIndex(value: string): number {

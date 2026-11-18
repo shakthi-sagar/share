@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveHtmlReference } from "./html-assets";
+import { parseSrcset, resolveHtmlReference, rewriteCssAssets } from "./html-assets";
 
 describe("relative HTML asset paths", () => {
   it("resolves sibling files relative to the HTML document in a share", () => {
@@ -25,5 +25,28 @@ describe("relative HTML asset paths", () => {
     ]) {
       expect(resolveHtmlReference("bundle/index.html", value)).toBeNull();
     }
+  });
+});
+
+describe("HTML bundle resource rewriting", () => {
+  it("preserves descriptors and commas inside URL tokens", () => {
+    expect(parseSrcset("small.png, large.png 2x, /third.png 480w, images/a,b.png 3x")).toEqual([
+      { url: "small.png", descriptor: "" },
+      { url: "large.png", descriptor: "2x" },
+      { url: "/third.png", descriptor: "480w" },
+      { url: "images/a,b.png", descriptor: "3x" },
+    ]);
+  });
+
+  it("resolves CSS resources from the stylesheet and ignores strings and comments", async () => {
+    const css =
+      "/* url(skip.svg) */p{content:'url(skip.svg)';background:url('../img/a.svg');mask:url(https://external.invalid/mask.svg)}";
+    const load = async (ref: string, from: string) => {
+      const path = resolveHtmlReference(from, ref);
+      return path ? `blob:${path}` : null;
+    };
+    expect(await rewriteCssAssets(css, "site/css/style.css", load)).toBe(
+      `/* url(skip.svg) */p{content:'url(skip.svg)';background:url("blob:site/img/a.svg");mask:url("")}`,
+    );
   });
 });

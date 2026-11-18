@@ -17,12 +17,25 @@ import {
   Search,
   X,
 } from "lucide-react";
-import { type KeyboardEvent, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  type CSSProperties,
+  type KeyboardEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { CopyButton } from "../components/CopyButton";
 import { Header } from "../components/Header";
+import { SidebarResize } from "../components/SidebarResize";
 import { API_BASE_URL } from "../lib/config";
 import { describeShareError } from "../lib/errors";
-import { type BundleTreeNode, buildFileTree, directoryPaths } from "../lib/file-tree";
+import {
+  type BundleTreeNode,
+  buildFileTree,
+  directoryPaths,
+  type FileSort,
+} from "../lib/file-tree";
 import { formatBytes } from "../lib/format";
 import { keyFromInput } from "../lib/share-key";
 import {
@@ -37,6 +50,8 @@ import {
   useLoadedPreview,
   useWideLayout,
 } from "../preview/FilePreview";
+import { startBrowserDownload } from "../preview/file-stream-worker";
+import type { Notes } from "../preview/GalleryReview";
 import { ImageGallery } from "../preview/ImageGallery";
 import { KindIcon } from "../preview/KindIcon";
 import { hasRenderedView, PREVIEW_LIMIT_BYTES, previewKind } from "../preview/kinds";
@@ -154,16 +169,32 @@ export function Share({ id }: { id: string }): React.JSX.Element {
   );
 }
 
+const fileFilters = {
+  all: null,
+  images: ["image", "svg", "raster"],
+  documents: ["pdf", "office", "markdown", "html", "text"],
+  media: ["audio", "video"],
+  source: ["code", "json", "csv"],
+};
+
 function ShareViewer({ share }: { share: UnlockedShare }): React.JSX.Element {
   const [selected, setSelected] = useState<ManifestFile | null>(share.manifest.files[0] ?? null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [fileQuery, setFileQuery] = useState("");
+  const [fileFilter, setFileFilter] = useState<keyof typeof fileFilters>("all");
+  const [sort, setSort] = useState<FileSort>("name");
+  const [sidebarWidth, setSidebarWidth] = useState(268);
+  const [notes, setNotes] = useState<Notes>({});
   const filteredFiles = useMemo(
     () =>
-      share.manifest.files.filter((file) =>
-        file.path.toLocaleLowerCase().includes(fileQuery.trim().toLocaleLowerCase()),
-      ),
-    [share, fileQuery],
+      share.manifest.files.filter((file) => {
+        const kinds = fileFilters[fileFilter];
+        return (
+          file.path.toLocaleLowerCase().includes(fileQuery.trim().toLocaleLowerCase()) &&
+          (!kinds || kinds.includes(previewKind(file.path, file.mime)))
+        );
+      }),
+    [share, fileQuery, fileFilter],
   );
   const [galleryOpen, setGalleryOpen] = useState(
     () =>
@@ -178,11 +209,20 @@ function ShareViewer({ share }: { share: UnlockedShare }): React.JSX.Element {
       ),
     [share],
   );
-  const selectedIndex = selected
-    ? share.manifest.files.findIndex((file) => file.id === selected.id)
-    : -1;
+  const navigation = useMemo(() => {
+    const ordered: ManifestFile[] = [];
+    function visit(nodes: BundleTreeNode[]): void {
+      for (const node of nodes) {
+        if (node.kind === "file") ordered.push(node.file);
+        else visit(node.children);
+      }
+    }
+    visit(buildFileTree(filteredFiles, sort));
+    return ordered;
+  }, [filteredFiles, sort]);
+  const selectedIndex = selected ? navigation.findIndex((file) => file.id === selected.id) : -1;
   const selectRelative = (step: number): void => {
-    const next = share.manifest.files[selectedIndex + step];
+    const next = navigation[selectedIndex + step];
     if (next) {
       setSelected(next);
       setGalleryOpen(false);
@@ -241,7 +281,10 @@ function ShareViewer({ share }: { share: UnlockedShare }): React.JSX.Element {
           </button>
         </div>
       </header>
-      <div className="viewer-body">
+      <div
+        className="viewer-body"
+        style={{ "--file-sidebar-width": `${sidebarWidth}px` } as CSSProperties}
+      >
         <aside className={`file-sidebar ${drawerOpen ? "is-open" : ""}`} aria-label="Files">
           <div className="sidebar-heading">
             <span>
@@ -271,9 +314,39 @@ function ShareViewer({ share }: { share: UnlockedShare }): React.JSX.Element {
             />
             {fileQuery ? <span className="viewer-search-count">{filteredFiles.length}</span> : null}
           </label>
-          {filteredFiles.length || !fileQuery ? (
+          <div className="viewer-file-controls">
+            <label>
+              <span>Type</span>
+              <select
+                value={fileFilter}
+                onChange={(event) =>
+                  setFileFilter(event.currentTarget.value as keyof typeof fileFilters)
+                }
+              >
+                <option value="all">All files</option>
+                <option value="images">Images</option>
+                <option value="documents">Documents</option>
+                <option value="media">Audio and video</option>
+                <option value="source">Source and data</option>
+              </select>
+            </label>
+            <label>
+              <span>Sort</span>
+              <select
+                value={sort}
+                onChange={(event) => setSort(event.currentTarget.value as FileSort)}
+              >
+                <option value="name">Name</option>
+                <option value="largest">Largest</option>
+                <option value="smallest">Smallest</option>
+              </select>
+            </label>
+          </div>
+          {filteredFiles.length ? (
             <FileTree
+              key={`${fileFilter}:${fileQuery}`}
               files={filteredFiles}
+              sort={sort}
               selected={selected}
               onSelect={(file) => {
                 setSelected(file);
@@ -282,8 +355,9 @@ function ShareViewer({ share }: { share: UnlockedShare }): React.JSX.Element {
               }}
             />
           ) : (
-            <p className="viewer-no-results">No files match “{fileQuery}”.</p>
+            <p className="viewer-no-results">No files match these filters.</p>
           )}
+          <SidebarResize width={sidebarWidth} onResize={setSidebarWidth} />
         </aside>
         {drawerOpen ? (
           <button
@@ -298,6 +372,8 @@ function ShareViewer({ share }: { share: UnlockedShare }): React.JSX.Element {
             <ImageGallery
               share={share}
               files={imageFiles}
+              notes={notes}
+              onNotesChange={setNotes}
               onSelect={(file) => {
                 setSelected(file);
                 setGalleryOpen(false);
@@ -306,8 +382,58 @@ function ShareViewer({ share }: { share: UnlockedShare }): React.JSX.Element {
           ) : selected ? (
             <div className="viewer-file-view">
               <nav className="viewer-file-nav" aria-label="Navigate files">
-                <span>
-                  File {selectedIndex + 1} of {share.manifest.files.length}
+                <ol className="file-breadcrumbs">
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFileQuery("");
+                        setFileFilter("all");
+                      }}
+                    >
+                      Files
+                    </button>
+                  </li>
+                  {selected.path
+                    .split("/")
+                    .reduce<{ path: string; label: string; leaf: boolean }[]>(
+                      (trail, part, index, parts) => {
+                        const path = parts.slice(0, index + 1).join("/");
+                        trail.push({
+                          path,
+                          label: displayPath(part),
+                          leaf: index === parts.length - 1,
+                        });
+                        return trail;
+                      },
+                      [],
+                    )
+                    .map(({ path, label, leaf }) => (
+                      <li key={path}>
+                        <ChevronRight size={12} aria-hidden="true" />
+                        {leaf ? (
+                          <span aria-current="page" title={label}>
+                            {label}
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            title={path}
+                            onClick={() => {
+                              setFileFilter("all");
+                              setFileQuery(`${path}/`);
+                            }}
+                          >
+                            {label}
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                </ol>
+                <span className="viewer-file-position">
+                  {selectedIndex >= 0
+                    ? `${selectedIndex + 1} of ${navigation.length}`
+                    : "Outside filter"}
                 </span>
                 <div>
                   <button
@@ -322,7 +448,7 @@ function ShareViewer({ share }: { share: UnlockedShare }): React.JSX.Element {
                   <button
                     type="button"
                     className="icon-button"
-                    disabled={selectedIndex >= share.manifest.files.length - 1}
+                    disabled={selectedIndex >= navigation.length - 1}
                     aria-label="Next file"
                     onClick={() => selectRelative(1)}
                   >
@@ -351,14 +477,16 @@ function ShareViewer({ share }: { share: UnlockedShare }): React.JSX.Element {
 
 function FileTree({
   files,
+  sort,
   selected,
   onSelect,
 }: {
   files: ManifestFile[];
+  sort: FileSort;
   selected: ManifestFile | null;
   onSelect: (file: ManifestFile) => void;
 }): React.JSX.Element {
-  const tree = useMemo(() => buildFileTree(files), [files]);
+  const tree = useMemo(() => buildFileTree(files, sort), [files, sort]);
   const [expanded, setExpanded] = useState(() => new Set(directoryPaths(tree)));
   const toggle = (path: string, open?: boolean): void =>
     setExpanded((current) => {
@@ -718,6 +846,11 @@ function DownloadButton({
               await share.openFile(file).pipeTo(destination);
               return;
             }
+            if (
+              file.size > CACHE_FILE_LIMIT &&
+              (await startBrowserDownload(() => share.openFile(file), fileName, file.size))
+            )
+              return;
             const blob = await readShareBlob(share, file);
             const url = URL.createObjectURL(blob);
             const anchor = document.createElement("a");

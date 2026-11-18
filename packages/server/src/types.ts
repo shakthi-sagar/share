@@ -21,6 +21,8 @@ export interface ShareRecord {
   expiresAt: string | null;
 }
 
+export type ShareCursor = Pick<ShareRecord, "id" | "createdAt">;
+
 export interface MetadataStore {
   create(record: ShareRecord): Promise<void>;
   find(id: string): Promise<ShareRecord | null>;
@@ -32,10 +34,15 @@ export interface MetadataStore {
   reserve(id: string, reservation: UploadReservation, limits: UploadLimits): Promise<boolean>;
   remove(id: string): Promise<boolean>;
   /**
-   * Lists ids the sweep may delete, bounded by `limit`: shares whose expiry is at or before
+   * Lists the next page of shares the sweep may delete, bounded by `limit`: shares whose expiry is at or before
    * `expiredAt`, and shares still uploading that were created at or before `abandonedBefore`.
    */
-  listPurgeable(expiredAt: string, abandonedBefore: string, limit: number): Promise<string[]>;
+  listPurgeable(
+    expiredAt: string,
+    abandonedBefore: string,
+    limit: number,
+    after?: ShareCursor,
+  ): Promise<ShareCursor[]>;
 }
 
 export interface UploadReservation {

@@ -6,9 +6,9 @@ import {
   unlockEncryptedShare,
 } from "@share/client";
 import { DEFAULT_CHUNK_SIZE } from "@share/protocol";
+import { type ApiServices, createApi, type LimitedAction } from "@share/server";
 import { MemoryBlobStore, MemoryMetadataStore } from "@share/server/testing";
 import { beforeEach, describe, expect, it } from "vitest";
-import { type ApiServices, createApi, type LimitedAction } from "../src/app";
 
 const origin = "https://share.example";
 const apiBaseUrl = "https://api.example";
@@ -72,6 +72,24 @@ async function errorOf(response: Response): Promise<{ status: number; body: unkn
 }
 
 describe("encrypted share API", () => {
+  it("sets a finite expiry for older publishers and caps long requests", async () => {
+    for (const [requested, days] of [
+      [null, 1],
+      [31_536_000, 7],
+    ] as const) {
+      const before = Date.now();
+      const response = await request(`${apiBaseUrl}/v1/shares`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ expiresInSeconds: requested }),
+      });
+      expect(response.status).toBe(201);
+      const share = (await response.json()) as { expiresAt: string };
+      expect(Date.parse(share.expiresAt) - before).toBeGreaterThanOrEqual(days * 86_400_000);
+      expect(Date.parse(share.expiresAt) - Date.now()).toBeLessThanOrEqual(days * 86_400_000);
+    }
+  });
+
   it("round trips a multi-chunk share through the real client", async () => {
     const large = patterned(DEFAULT_CHUNK_SIZE + 1234);
     const small = new TextEncoder().encode("# Notes\n");

@@ -1,34 +1,39 @@
 import { unzipSync } from "fflate";
 import { useEffect, useState } from "react";
 import { extensionOf } from "./kinds";
+import {
+  type Paragraph,
+  type Slide,
+  sheets,
+  slides,
+  type WordBlock,
+  wordBlocks,
+} from "./office-layout";
+import { type Sheet, SpreadsheetView } from "./SpreadsheetView";
 
 const MAX_TOTAL_XML = 20 * 1024 * 1024;
 const MAX_PART_XML = 8 * 1024 * 1024;
-const MAX_OUTPUT_CHARACTERS = 250_000;
 
-export type OfficeDocument = {
-  sections: { heading: string; lines: string[] }[];
-  truncated: boolean;
-};
+type OfficeDocument =
+  | { kind: "docx"; blocks: WordBlock[] }
+  | { kind: "pptx"; pages: Slide[] }
+  | { kind: "xlsx"; sheets: Sheet[] };
 
-/**
- * Read-only text extraction from OOXML documents. XML is parsed as inert data; the browser never
- * executes embedded macros, hyperlinks, document HTML or external resources. Skip every ZIP entry
- * except bounded, known document parts, before decompressing it.
- */
-export function extractOfficeDocument(bytes: Uint8Array, extension: string): OfficeDocument {
+function openOffice(bytes: Uint8Array, extension: string): OfficeDocument {
   if (bytes.byteLength > 12 * 1024 * 1024) throw new Error("Document is too large to preview");
   let total = 0;
+  const slidePattern = /^ppt\/slides\/slide[0-9]+\.xml$/u;
+  const sheetPattern = /^xl\/worksheets\/sheet[0-9]+\.xml$/u;
   const want = (name: string): boolean => {
     if (extension === "docx") return name === "word/document.xml";
-    if (extension === "pptx") return /^ppt\/slides\/slide[0-9]+\.xml$/u.test(name);
+    if (extension === "pptx") return name === "ppt/presentation.xml" || slidePattern.test(name);
     return (
-      extension === "xlsx" &&
-      (name === "xl/sharedStrings.xml" || /^xl\/worksheets\/sheet[0-9]+\.xml$/u.test(name))
+      ["xl/sharedStrings.xml", "xl/workbook.xml", "xl/_rels/workbook.xml.rels"].includes(name) ||
+      sheetPattern.test(name)
     );
   };
   const entries = unzipSync(bytes, {
-    filter: (file) => {
+    filter(file) {
       if (
         !want(file.name) ||
         file.originalSize > MAX_PART_XML ||
@@ -41,80 +46,111 @@ export function extractOfficeDocument(bytes: Uint8Array, extension: string): Off
   });
   const parser = new DOMParser();
   const read = (name: string): Document | null => {
+    if (!Object.hasOwn(entries, name)) return null;
     const encoded = entries[name];
     if (!encoded) return null;
     const xml = parser.parseFromString(new TextDecoder().decode(encoded), "application/xml");
     if (xml.querySelector("parsererror")) throw new Error("Document contains invalid XML");
     return xml;
   };
-  const sections: OfficeDocument["sections"] = [];
-  const namespaces = {
-    word: "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
-    drawing: "http://schemas.openxmlformats.org/drawingml/2006/main",
-    sheet: "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
-  };
-  const parts = Object.keys(entries)
-    .filter((name) => name !== "xl/sharedStrings.xml")
-    .sort(
-      (a, b) =>
-        Number(a.match(/\d+(?=\.xml$)/u)?.[0] ?? 0) - Number(b.match(/\d+(?=\.xml$)/u)?.[0] ?? 0),
-    );
-  const sharedXml = read("xl/sharedStrings.xml");
-  const shared = sharedXml
-    ? [...sharedXml.getElementsByTagNameNS(namespaces.sheet, "si")].map((node) =>
-        [...node.getElementsByTagNameNS(namespaces.sheet, "t")]
-          .map((text) => text.textContent ?? "")
-          .join(""),
-      )
-    : [];
-  for (const part of parts.slice(0, 100)) {
-    const doc = read(part);
-    if (!doc) continue;
-    const lines: string[] = [];
-    if (extension === "docx" || extension === "pptx") {
-      const ns = extension === "docx" ? namespaces.word : namespaces.drawing;
-      const paragraphTag = "p";
-      for (const paragraph of doc.getElementsByTagNameNS(ns, paragraphTag)) {
-        const text = [...paragraph.getElementsByTagNameNS(ns, "t")]
-          .map((x) => x.textContent ?? "")
-          .join("");
-        if (text.trim()) lines.push(text);
-      }
-    } else {
-      for (const row of doc.getElementsByTagNameNS(namespaces.sheet, "row")) {
-        const cells: string[] = [];
-        for (const cell of row.getElementsByTagNameNS(namespaces.sheet, "c")) {
-          const value = cell.getElementsByTagNameNS(namespaces.sheet, "v")[0]?.textContent ?? "";
-          const inline = cell.getElementsByTagNameNS(namespaces.sheet, "is")[0]?.textContent ?? "";
-          cells.push(
-            cell.getAttribute("t") === "s" ? (shared[Number(value)] ?? "") : inline || value,
-          );
-        }
-        if (cells.length) lines.push(cells.join("  |  "));
-      }
-    }
-    sections.push({
-      heading:
-        extension === "docx" ? "Document" : (part.split("/").at(-1)?.replace(".xml", "") ?? "Page"),
-      lines,
-    });
-  }
-  if (!sections.length) throw new Error("No supported document text was found");
-  let characters = 0;
-  let truncated = parts.length > 100;
-  for (const section of sections) {
-    const kept: string[] = [];
-    for (const line of section.lines) {
-      if (characters + line.length > MAX_OUTPUT_CHARACTERS) {
-        truncated = true;
-        break;
-      }
-      characters += line.length;
-      kept.push(line);
-    }
-    section.lines = kept;
-  }
-  return { sections, truncated };
+  const parts = (pattern: RegExp) =>
+    Object.keys(entries)
+      .filter((name) => pattern.test(name))
+      .sort(
+        (a, b) => Number(a.match(/\d+(?=\.xml$)/u)?.[0]) - Number(b.match(/\d+(?=\.xml$)/u)?.[0]),
+      );
+  if (extension === "docx") return { kind: "docx", blocks: wordBlocks(read) };
+  if (extension === "pptx") return { kind: "pptx", pages: slides(read, parts(slidePattern)) };
+  return { kind: "xlsx", sheets: sheets(read, parts(sheetPattern)) };
+}
+
+function OfficeParagraph({ paragraph }: { paragraph: Paragraph }): React.JSX.Element {
+  const Tag = paragraph.heading ? "h2" : "p";
+  return (
+    <Tag style={paragraph.style}>
+      {paragraph.runs.map((run) => (
+        <span key={run.index} style={run.style}>
+          {run.text}
+        </span>
+      ))}
+    </Tag>
+  );
+}
+
+function WordView({ blocks }: { blocks: WordBlock[] }): React.JSX.Element {
+  return (
+    <div className="office-section">
+      {!blocks.length ? <p>No readable document content.</p> : null}
+      {blocks.map((block) =>
+        "paragraph" in block ? (
+          <OfficeParagraph key={block.index} paragraph={block.paragraph} />
+        ) : (
+          <table key={block.index}>
+            <tbody>
+              {block.rows.map((row, index) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: document cells are positional and immutable.
+                <tr key={index}>
+                  {row.map((cell, column) => (
+                    // biome-ignore lint/suspicious/noArrayIndexKey: document cells are positional and immutable.
+                    <td key={column}>
+                      {cell.map((paragraph, line) => (
+                        // biome-ignore lint/suspicious/noArrayIndexKey: document paragraphs are positional and immutable.
+                        <OfficeParagraph key={line} paragraph={paragraph} />
+                      ))}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ),
+      )}
+    </div>
+  );
+}
+
+function PresentationView({ pages }: { pages: Slide[] }): React.JSX.Element {
+  const [index, setIndex] = useState(0);
+  const page = pages[index];
+  if (!page) return <div className="content-state">This presentation has no readable slides.</div>;
+  return (
+    <section className="office-section">
+      <button type="button" disabled={index === 0} onClick={() => setIndex(index - 1)}>
+        Previous slide
+      </button>{" "}
+      <button
+        type="button"
+        disabled={index + 1 >= pages.length}
+        onClick={() => setIndex(index + 1)}
+      >
+        Next slide
+      </button>{" "}
+      <span role="status">
+        Slide {index + 1} of {pages.length}
+      </span>
+      <div
+        style={{
+          position: "relative",
+          aspectRatio: page.ratio,
+          background: page.background,
+          color: "#151515",
+          containerType: "size",
+          overflow: "hidden",
+          width: "100%",
+          marginTop: 8,
+        }}
+      >
+        {page.shapes.map((shape) => (
+          <div key={shape.index} style={shape.style}>
+            {shape.paragraphs.map((paragraph, line) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: slide paragraphs are positional and immutable.
+              <OfficeParagraph key={line} paragraph={paragraph} />
+            ))}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 export function OfficeView({ blob, path }: { blob: Blob; path: string }): React.JSX.Element {
@@ -124,7 +160,7 @@ export function OfficeView({ blob, path }: { blob: Blob; path: string }): React.
     let active = true;
     void blob
       .arrayBuffer()
-      .then((buffer) => extractOfficeDocument(new Uint8Array(buffer), extensionOf(path)))
+      .then((buffer) => openOffice(new Uint8Array(buffer), extensionOf(path)))
       .then((result) => {
         if (active) setDocument(result);
       })
@@ -150,25 +186,11 @@ export function OfficeView({ blob, path }: { blob: Blob; path: string }): React.
   return (
     <article className="office-view">
       <p className="preview-notice">
-        Read-only text preview. Complex formatting, charts, images, and formulas may not appear.
-        Download the original for full fidelity.
+        Read-only preview. Download the original for embedded media, charts, and full formatting.
       </p>
-      {document.sections.map((section) => (
-        <section key={section.heading} className="office-section">
-          <h2>{section.heading}</h2>
-          {section.lines.length ? (
-            section.lines.map((line, lineIndex) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: document lines are immutable within this preview.
-              <p key={lineIndex}>{line}</p>
-            ))
-          ) : (
-            <p>No readable text.</p>
-          )}
-        </section>
-      ))}
-      {document.truncated ? (
-        <p className="preview-notice">Preview truncated for performance and safety.</p>
-      ) : null}
+      {document.kind === "docx" ? <WordView blocks={document.blocks} /> : null}
+      {document.kind === "pptx" ? <PresentationView pages={document.pages} /> : null}
+      {document.kind === "xlsx" ? <SpreadsheetView sheets={document.sheets} /> : null}
     </article>
   );
 }

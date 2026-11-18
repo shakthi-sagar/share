@@ -1,5 +1,11 @@
 import type { CompleteShareRequest } from "@share/protocol";
-import type { MetadataStore, ShareRecord, UploadLimits, UploadReservation } from "@share/server";
+import type {
+  MetadataStore,
+  ShareCursor,
+  ShareRecord,
+  UploadLimits,
+  UploadReservation,
+} from "./types";
 
 interface ShareRow {
   id: string;
@@ -18,8 +24,21 @@ interface ShareRow {
   expires_at: string | null;
 }
 
-export class D1MetadataStore implements MetadataStore {
-  constructor(private readonly database: D1Database) {}
+type SqlValue = string | number | null;
+
+export interface SqlStatement {
+  bind(...values: SqlValue[]): SqlStatement;
+  run(): Promise<{ meta: { changes: number } }>;
+  first<Row>(): Promise<Row | null>;
+  all<Row>(): Promise<{ results: Row[] }>;
+}
+
+export interface SqlDatabase {
+  prepare(query: string): SqlStatement;
+}
+
+export class SqlMetadataStore implements MetadataStore {
+  constructor(private readonly database: SqlDatabase) {}
 
   async create(record: ShareRecord): Promise<void> {
     await this.database
@@ -104,25 +123,51 @@ export class D1MetadataStore implements MetadataStore {
     return result.meta.changes === 1;
   }
 
+  async retentionStats(expiredAt: string, abandonedBefore: string) {
+    return this.database
+      .prepare(
+        `SELECT
+          COALESCE(SUM(reserved_bytes), 0) AS reservedBytes,
+          COALESCE(SUM(CASE WHEN state = 'ready' THEN ciphertext_bytes ELSE 0 END), 0)
+            AS completedCiphertextBytes,
+          COUNT(CASE WHEN expires_at <= ?1
+            OR (state = 'uploading' AND created_at <= ?2) THEN 1 END) AS queuedShares,
+          COUNT(CASE WHEN state = 'ready' AND expires_at IS NULL THEN 1 END) AS legacyShares,
+          COALESCE(SUM(CASE WHEN state = 'ready' AND expires_at IS NULL
+            THEN ciphertext_bytes ELSE 0 END), 0) AS legacyCiphertextBytes
+         FROM shares`,
+      )
+      .bind(expiredAt, abandonedBefore)
+      .first<{
+        reservedBytes: number;
+        completedCiphertextBytes: number;
+        queuedShares: number;
+        legacyShares: number;
+        legacyCiphertextBytes: number;
+      }>();
+  }
+
   async listPurgeable(
     expiredAt: string,
     abandonedBefore: string,
     limit: number,
-  ): Promise<string[]> {
+    after?: ShareCursor,
+  ): Promise<ShareCursor[]> {
     // Each branch uses its own partial index: shares_expiry_idx and shares_uploading_idx.
     const result = await this.database
       .prepare(
-        `SELECT id FROM (
+        `SELECT id, created_at AS createdAt FROM (
            SELECT id, created_at FROM shares WHERE expires_at IS NOT NULL AND expires_at <= ?1
            UNION
            SELECT id, created_at FROM shares WHERE state = 'uploading' AND created_at <= ?2
          )
-         ORDER BY created_at ASC
+         WHERE (created_at, id) > (?4, ?5)
+         ORDER BY created_at ASC, id ASC
          LIMIT ?3`,
       )
-      .bind(expiredAt, abandonedBefore, limit)
-      .all<{ id: string }>();
-    return result.results.map((row) => row.id);
+      .bind(expiredAt, abandonedBefore, limit, after?.createdAt ?? "", after?.id ?? "")
+      .all<ShareCursor>();
+    return result.results;
   }
 }
 

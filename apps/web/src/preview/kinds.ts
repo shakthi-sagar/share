@@ -15,6 +15,9 @@ export type PreviewKind =
   | "audio"
   | "video"
   | "font"
+  | "archive"
+  | "raster"
+  | "model"
   | "office"
   | "binary";
 
@@ -49,6 +52,9 @@ export const PREVIEW_LIMIT_BYTES: Record<PreviewKind, number> = {
   audio: 256 * 1024 * 1024,
   video: 512 * 1024 * 1024,
   font: 16 * 1024 * 1024,
+  archive: 64 * 1024 * 1024,
+  raster: 24 * 1024 * 1024,
+  model: 24 * 1024 * 1024,
   office: 12 * 1024 * 1024,
   binary: 0,
 };
@@ -184,19 +190,7 @@ const videoExtensions = new Set(["m4v", "mov", "mp4", "ogv", "webm"]);
 const fontExtensions = new Set(["otf", "ttf", "woff", "woff2"]);
 
 /** Formats browsers cannot decode, even with an image or media MIME type. */
-const undecodable = new Set([
-  "heic",
-  "heif",
-  "tif",
-  "tiff",
-  "psd",
-  "raw",
-  "cr2",
-  "nef",
-  "avi",
-  "mkv",
-  "wmv",
-]);
+const undecodable = new Set(["psd", "raw", "cr2", "nef", "avi", "mkv", "wmv"]);
 
 export function fileName(path: string): string {
   return path.split("/").at(-1) ?? path;
@@ -213,6 +207,9 @@ export function previewKind(path: string, mime: string): PreviewKind {
   const extension = extensionOf(path);
   const type = mime.toLowerCase().split(";")[0]?.trim() ?? "";
 
+  if (extension === "zip") return "archive";
+  if (["heic", "heif", "tif", "tiff"].includes(extension)) return "raster";
+  if (["glb", "gltf", "obj", "stl"].includes(extension)) return "model";
   if (undecodable.has(extension)) return "binary";
   if (extension === "md" || extension === "mdx" || extension === "markdown") return "markdown";
   if (type === "text/markdown") return "markdown";
@@ -230,6 +227,7 @@ export function previewKind(path: string, mime: string): PreviewKind {
   if (fontExtensions.has(extension) || type.startsWith("font/")) return "font";
   if (codeLanguages[extension] || codeFileNames[name]) return "code";
   if (plainTextExtensions.has(extension) || plainTextNames.has(name)) return "text";
+  if (type === "application/zip") return "archive";
   if (type.startsWith("image/")) return "image";
   if (type.startsWith("audio/")) return "audio";
   if (type.startsWith("video/")) return "video";
@@ -274,6 +272,10 @@ export function safeMediaType(kind: PreviewKind, path: string, mime: string): st
   switch (kind) {
     case "svg":
       return "image/svg+xml";
+    case "font":
+      return ["ttf", "otf", "woff", "woff2"].includes(extension)
+        ? `font/${extension}`
+        : "application/octet-stream";
     case "pdf":
       return "application/pdf";
     case "image":

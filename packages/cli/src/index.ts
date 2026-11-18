@@ -1,6 +1,7 @@
 import {
   createReadStream,
   existsSync,
+  lstatSync,
   mkdirSync,
   readdirSync,
   readFileSync,
@@ -66,8 +67,7 @@ export function parseTTL(raw: string): number {
 
 export function parseShareURL(raw: string): { id: string; key: string } {
   const url = new URL(raw);
-  if (url.protocol !== "https:" && url.hostname !== "localhost")
-    throw new Error("Share URL must use HTTPS");
+  if (url.protocol !== "https:" && !isLocalHttp(url)) throw new Error("Share URL must use HTTPS");
   const match = /^\/s\/([A-Za-z0-9_-]{22})$/.exec(url.pathname);
   const key = new URLSearchParams(url.hash.slice(1)).get("k");
   if (!match || !key || !/^[A-Za-z0-9_-]{43}$/.test(key))
@@ -97,9 +97,12 @@ function positional(args: string[]): string[] {
 }
 function baseURL(args: string[]): string {
   const url = new URL(option(args, "--server", process.env.SHARE_SERVER ?? DEFAULT_URL)!);
-  if (url.protocol !== "https:" && url.hostname !== "localhost")
-    throw new Error("Server must use HTTPS");
+  if (url.protocol !== "https:" && !isLocalHttp(url)) throw new Error("Server must use HTTPS");
   return url.origin;
+}
+
+function isLocalHttp(url: URL): boolean {
+  return url.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
 }
 
 function collect(inputs: string[]): ShareSourceFile[] {
@@ -110,7 +113,9 @@ function collect(inputs: string[]): ShareSourceFile[] {
     if (info.isDirectory()) {
       for (const child of readdirSync(full).sort()) {
         if (child === ".git" || child === "node_modules") continue;
-        visit(join(full, child), `${rel}/${child}`);
+        const path = join(full, child);
+        if (lstatSync(path).isSymbolicLink()) continue;
+        visit(path, `${rel}/${child}`);
       }
       return;
     }
@@ -140,9 +145,14 @@ function collect(inputs: string[]): ShareSourceFile[] {
 
 async function main(): Promise<void> {
   const [cmd, ...args] = process.argv.slice(2);
+  if (cmd === "mcp") {
+    const { runMcp } = await import("./mcp");
+    await runMcp(realpathSync(process.argv[1]!), baseURL(args), process.env.SHARE_MCP_ROOT);
+    return;
+  }
   if (!cmd || ["help", "--help", "-h"].includes(cmd)) {
     console.log(
-      `share — encrypted, expiring file links\n\n  share put <file|folder> [...] [--expires 1d] [--name title] [--server URL]\n  share inspect <share-url> [--server URL]\n  share revoke <share-id> [--server URL]\n  share ls [--json]\n  share status [--server URL] [--json]\n\nDefaults: 24h expiry (maximum 7d), https://share.shadster.dev\nUploads encrypt locally; URLs contain the decryption key. Treat links as secrets.\nReceipts for revocation are stored locally in ~/.local/share/receipts/ (mode 0600).`,
+      `share — encrypted, expiring file links\n\n  share put <file|folder> [...] [--expires 1d] [--name title] [--server URL]\n  share inspect <share-url> [--server URL]\n  share revoke <share-id> [--server URL]\n  share ls [--json]\n  share status [--server URL] [--json]\n  share mcp [--server URL]\n\nDefaults: 24h expiry (maximum 7d), https://share.shadster.dev\nUploads encrypt locally; URLs contain the decryption key. Treat links as secrets.\nReceipts for revocation are stored locally in ~/.local/share/receipts/ (mode 0600).`,
     );
     return;
   }
@@ -211,7 +221,11 @@ async function main(): Promise<void> {
     const [url] = positional(args);
     if (!url) throw new Error("Provide a share URL");
     const { id, key } = parseShareURL(url);
-    const shared = await unlockEncryptedShare({ apiBaseUrl: baseURL(args), id, key });
+    const shared = await unlockEncryptedShare({
+      apiBaseUrl: option(args, "--server") ? baseURL(args) : new URL(url).origin,
+      id,
+      key,
+    });
     console.log(
       JSON.stringify(
         {
