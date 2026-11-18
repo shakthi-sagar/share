@@ -5100,3 +5100,19 @@ textarea:focus-visible {
     transition: none;
   }
 }
+
+/* Keep file-browser chrome on shared horizontal rails: the folder heading matches the
+   breadcrumb row, and the search/filters boundary matches the selected-file heading. */
+@media (min-width: 761px) {
+  .file-sidebar > .sidebar-heading {
+    height: 39px;
+    min-height: 39px;
+  }
+  .file-sidebar > .viewer-file-search {
+    margin-top: 8px;
+    margin-bottom: 9px;
+  }
+  .file-sidebar > .viewer-file-controls {
+    border-top: 1px solid var(--border);
+  }
+}
