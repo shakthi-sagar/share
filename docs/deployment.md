@@ -134,6 +134,22 @@ curl -fsS 'http://127.0.0.1:8787/cdn-cgi/local/scheduled?cron=17+*+*+*+*'
 
 The response is `ok`. The server log reports `scanned`, `removed`, and `failed`.
 
+### Cleanup monitoring
+
+After each sweep, the Worker records the scheduled timestamp and whether deletion succeeded in a
+single D1 row. The read-only `/health/cleanup` endpoint requires a dedicated bearer token. It
+returns an overall status without identifiers, counts, or timestamps. It reports unhealthy if the
+latest sweep failed or if no successful result was recorded in the last 110 minutes. For up to
+110 minutes after the migration, it can report that it is waiting for the first sweep.
+
+The scheduled GitHub uptime workflow checks cleanup twice per hour. Set the GitHub Actions secret
+`SHARE_CLEANUP_MONITOR_TOKEN` to a random 64-character hexadecimal token. Configure the Worker secret
+`SHARE_CLEANUP_MONITOR_HASH` with the SHA-256 hash of that token encoded as unpadded base64url.
+After deploying the updated Worker, set the GitHub repository variable `SHARE_CLEANUP_MONITOR_ENABLED`
+to `true`. A failed check appears in GitHub Actions and uses
+the repository owner's GitHub Actions notification preferences. Inspect the Worker's scheduled
+invocations and expiry sweep logs before retrying or changing configuration.
+
 ## Custom domains and workers.dev
 
 `SHARE_CUSTOM_DOMAIN` generates a Wrangler Custom Domain route. Cloudflare owns DNS and certificate
