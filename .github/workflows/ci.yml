@@ -11,9 +11,16 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.2-noble
+      options: --ipc=host
+    env:
+      # GitHub's container HOME points at /github/home owned by pwuser. Firefox
+      # refuses to run as root unless HOME belongs to the current user.
+      HOME: /root
+    timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
         with:
           version: 10.5.2
@@ -22,20 +29,22 @@ jobs:
           node-version: '22'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Prepare public-only development configuration
+        run: cp .env.example .env
       - name: Typecheck, unit tests, and formatting
         run: |
           pnpm exec biome check .
           pnpm check
+          pnpm --filter @share/cli build
           pnpm test
       - name: Build distributables
         run: |
-          cp .env.example .env
           pnpm build
           pnpm package:cli
       - name: Synthetic 10,000-file benchmark
         run: pnpm bench:files
-      - name: Install browsers
-        run: pnpm exec playwright install --with-deps chromium firefox webkit
+      # The pinned Playwright container includes Chromium, Firefox, WebKit and their
+      # system libraries. Avoid slow, non-reproducible apt installs on hosted runners.
       - name: Provision local Cloudflare emulation
         run: |
           cp .env.example .env.development
@@ -71,7 +80,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
         with:
           version: 10.5.2
