@@ -109,7 +109,34 @@ try {
       assert.equal(await page.evaluate(() => window.__shareUnsafe === true), false);
       assert.equal((await frame.locator("img").getAttribute("src"))?.startsWith("blob:"), true);
       await frame.locator("a").first().click();
-      await page.locator(".viewer-file-identity").getByText("chamber.png").waitFor();
+      try {
+        await page
+          .locator(".viewer-file-identity")
+          .getByText("chamber.png")
+          .waitFor({ timeout: 9000 });
+      } catch (error) {
+        if (platform === "webkit") {
+          const debug = await page
+            .locator(".html-view iframe")
+            .evaluate((frame) => {
+              const iframe = frame;
+              let hash = "inaccessible";
+              try {
+                hash = iframe.contentWindow?.location.hash ?? "no-window";
+              } catch {
+                /* sandbox */
+              }
+              return {
+                hash,
+                hasDocument: Boolean(iframe.contentDocument),
+                title: iframe.contentDocument?.title,
+              };
+            })
+            .catch(() => ({ hash: "frame detached", hasDocument: false }));
+          console.error("WebKit local-link navigation diagnostic:", JSON.stringify(debug));
+        }
+        throw error;
+      }
       const download = page.waitForEvent("download");
       await page.getByRole("button", { name: "Download chamber.png" }).click();
       const transferred = await download;
