@@ -30,19 +30,19 @@ primary controls, equal-weight action-card grids, and hidden hover-only actions 
 
 Use semantic variables instead of raw color values in component rules.
 
-| Token | Role |
-| --- | --- |
-| `--page`, `--surface` | Main page and component backgrounds |
-| `--surface-subtle`, `--surface-hover` | Secondary areas, selections, and hover feedback |
-| `--surface-code`, `--surface-success` | Code presentation and positive status surfaces |
-| `--text`, `--text-reading` | Primary UI and long-form reading text |
-| `--text-secondary`, `--text-muted` | Supporting and low-emphasis information |
-| `--text-on-primary` | Text or icons on the primary color |
-| `--border`, `--border-strong` | Default and emphasized boundaries |
-| `--primary`, `--primary-hover`, `--primary-tint` | Primary actions, focus, and selected items |
-| `--accent`, `--accent-tint` | Functional progress, drag-active state, and the publish secrecy callout only |
-| `--danger`, `--success` | Error and success meaning |
-| `--overlay`, `--tap-highlight` | Transient interaction layers |
+| Token                                            | Role                                                                         |
+| ------------------------------------------------ | ---------------------------------------------------------------------------- |
+| `--page`, `--surface`                            | Main page and component backgrounds                                          |
+| `--surface-subtle`, `--surface-hover`            | Secondary areas, selections, and hover feedback                              |
+| `--surface-code`, `--surface-success`            | Code presentation and positive status surfaces                               |
+| `--text`, `--text-reading`                       | Primary UI and long-form reading text                                        |
+| `--text-secondary`, `--text-muted`               | Supporting and low-emphasis information                                      |
+| `--text-on-primary`                              | Text or icons on the primary color                                           |
+| `--border`, `--border-strong`                    | Default and emphasized boundaries                                            |
+| `--primary`, `--primary-hover`, `--primary-tint` | Primary actions, focus, and selected items                                   |
+| `--accent`, `--accent-tint`                      | Functional progress, drag-active state, and the publish secrecy callout only |
+| `--danger`, `--success`                          | Error and success meaning                                                    |
+| `--overlay`, `--tap-highlight`                   | Transient interaction layers                                                 |
 
 Do not use color alone to communicate state. Pair it with text, an icon, or a structural change.
 

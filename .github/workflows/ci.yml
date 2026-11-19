@@ -26,7 +26,7 @@ jobs:
           version: 10.5.2
       - uses: actions/setup-node@v7
         with:
-          node-version: '22'
+          node-version: "22"
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Prepare public-only development configuration
@@ -86,7 +86,7 @@ jobs:
           version: 10.5.2
       - uses: actions/setup-node@v7
         with:
-          node-version: '22'
+          node-version: "22"
       - run: pnpm install --frozen-lockfile
       - name: Block on production high and critical advisories
         run: pnpm audit --prod --audit-level high

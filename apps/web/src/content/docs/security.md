@@ -13,11 +13,11 @@ The CLI and its local stdio MCP server use the same documented wire protocol.
 
 All keys are derived with HKDF-SHA-256 using the UTF-8 salt `share/v1/<share-id>`.
 
-| Purpose | HKDF info |
-| --- | --- |
-| Manifest AES-256-GCM key | `share/v1/manifest` |
-| Read authorization credential | `share/v1/read-authorization` |
-| File AES-256-GCM key | `share/v1/file/<opaque-object-id>` |
+| Purpose                       | HKDF info                          |
+| ----------------------------- | ---------------------------------- |
+| Manifest AES-256-GCM key      | `share/v1/manifest`                |
+| Read authorization credential | `share/v1/read-authorization`      |
+| File AES-256-GCM key          | `share/v1/file/<opaque-object-id>` |
 
 The read credential is base64url encoded before use. The server stores only the SHA-256 hash of that
 encoded credential and requires the credential before returning a manifest or a chunk.

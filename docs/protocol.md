@@ -13,11 +13,11 @@ web threat model. CLI, MCP and independently built clients use the same wire pro
 
 All keys are derived with HKDF-SHA-256. The salt is UTF-8 `share/v1/<share-id>`.
 
-| Purpose | HKDF info |
-| --- | --- |
-| Manifest AES-256-GCM key | `share/v1/manifest` |
-| Read authorization credential | `share/v1/read-authorization` |
-| File AES-256-GCM key | `share/v1/file/<opaque-object-id>` |
+| Purpose                       | HKDF info                          |
+| ----------------------------- | ---------------------------------- |
+| Manifest AES-256-GCM key      | `share/v1/manifest`                |
+| Read authorization credential | `share/v1/read-authorization`      |
+| File AES-256-GCM key          | `share/v1/file/<opaque-object-id>` |
 
 The read credential is base64url encoded before use. The server stores only SHA-256 of that
 encoded credential.
@@ -41,7 +41,6 @@ Each file has an independent derived AES key and random eight-byte nonce prefix.
 Chunk authenticated data binds protocol version, share ID, object ID, index and expected
 plaintext length. Chunks are independently authenticated and can be retrieved lazily.
 
-
 ## Paths and names
 
 Manifest paths are parsed with `isSafeRelativePath`: relative, `/`-separated, at most 1024
@@ -53,12 +52,12 @@ paths and share names through `displayPath`, which renders those characters as `
 
 ## Size limits
 
-| Limit | Value | Enforced by |
-| --- | --- | --- |
-| Encrypted manifest | 1 MiB | Client before upload, API on upload |
-| Encrypted chunk | 4 MiB + 16-byte tag | API on upload |
-| Files per manifest | 10,000 | Client, manifest schema |
-| Chunks per share | 1,000,000 | Client before upload, API reservation |
+| Limit                | Value                          | Enforced by                           |
+| -------------------- | ------------------------------ | ------------------------------------- |
+| Encrypted manifest   | 1 MiB                          | Client before upload, API on upload   |
+| Encrypted chunk      | 4 MiB + 16-byte tag            | API on upload                         |
+| Files per manifest   | 10,000                         | Client, manifest schema               |
+| Chunks per share     | 1,000,000                      | Client before upload, API reservation |
 | Ciphertext per share | `SHARE_PUBLIC_MAX_SHARE_BYTES` | Client before upload, API reservation |
 
 The client plans the manifest, including object ids and nonce prefixes, before its first request, so

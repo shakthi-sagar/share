@@ -44,11 +44,11 @@ Share previews Markdown, formatted source, JSON, YAML, notebooks, HTML, PDFs, im
 
 ## Local and published data
 
-| Location | Contents | Encrypted |
-| --- | --- | --- |
-| This browser | Workspaces and file blobs | No |
-| API storage | Published manifests and chunks | Yes, with AES-256-GCM |
-| API metadata | IDs, timestamps, sizes, expiry, credential hash | Not applicable |
+| Location     | Contents                                        | Encrypted             |
+| ------------ | ----------------------------------------------- | --------------------- |
+| This browser | Workspaces and file blobs                       | No                    |
+| API storage  | Published manifests and chunks                  | Yes, with AES-256-GCM |
+| API metadata | IDs, timestamps, sizes, expiry, credential hash | Not applicable        |
 
 Deleting a share requires the delete credential that was issued when it was created, and it works
 after expiry too. Deleting a local workspace does not affect a published snapshot.

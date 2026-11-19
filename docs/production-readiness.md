@@ -4,7 +4,7 @@ This record distinguishes measured checks from operational and manual checks. Au
 
 ## Refresh and secret retention
 
-The master secret enters through `#k=` and is removed from the address bar after opening. On a successful unlock, a validated key is retained **in this tab's sessionStorage** under its share ID. It survives refresh, but is not in localStorage, IndexedDB, a cookie or server storage. The **Lock tab** button clears the key and viewer state. A failed 404 unlock also clears the cached key. Some browser session restores and duplicate-tab operations may preserve or clone sessionStorage; do not treat tab closure as a guaranteed time-to-live. An XSS on Share's origin could access the key, so preview isolation and strict CSP remain important. Decrypted *file bytes* are only in a bounded in-memory cache; refresh discards them.
+The master secret enters through `#k=` and is removed from the address bar after opening. On a successful unlock, a validated key is retained **in this tab's sessionStorage** under its share ID. It survives refresh, but is not in localStorage, IndexedDB, a cookie or server storage. The **Lock tab** button clears the key and viewer state. A failed 404 unlock also clears the cached key. Some browser session restores and duplicate-tab operations may preserve or clone sessionStorage; do not treat tab closure as a guaranteed time-to-live. An XSS on Share's origin could access the key, so preview isolation and strict CSP remain important. Decrypted _file bytes_ are only in a bounded in-memory cache; refresh discards them.
 
 ## Automated gates
 
