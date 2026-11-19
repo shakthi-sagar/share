@@ -17,3 +17,24 @@ jobs:
           test "$response" = '{"status":"ok"}'
           curl -fsSI --max-time 15 https://share.shadster.dev/ | grep -qi '^content-security-policy:'
           echo 'Health and CSP present.'
+
+  cleanup:
+    name: Check expired-share cleanup
+    if: vars.SHARE_CLEANUP_MONITOR_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Verify the latest cleanup sweep succeeded
+        env:
+          SHARE_CLEANUP_MONITOR_TOKEN: ${{ secrets.SHARE_CLEANUP_MONITOR_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$SHARE_CLEANUP_MONITOR_TOKEN"
+          response=$(printf 'header = "Authorization: Bearer %s"\n' "$SHARE_CLEANUP_MONITOR_TOKEN" |
+            curl --config - --fail --silent --show-error --max-time 15 --retry 2 \
+              https://share.shadster.dev/health/cleanup) || response=
+          case "$response" in
+            '{"status":"ok"}') echo 'The latest cleanup sweep succeeded.' ;;
+            '{"status":"waiting"}') echo 'Waiting for the first cleanup sweep after deployment.' ;;
+            *) echo "::error::Share cleanup is unhealthy or unconfirmed. Check the Cloudflare Worker cron logs."; exit 1 ;;
+          esac

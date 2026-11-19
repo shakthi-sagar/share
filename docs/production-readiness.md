@@ -22,7 +22,7 @@ The small-file cache is limited to 16 MiB per item, 64 MiB total per unlocked sh
 ## Observability and incident response
 
 - Share's API logs route, error type, and aggregate counts; no authorization tokens, secret URLs, manifest paths or blob keys should enter logs.
-- The hourly cleanup sweep logs scanned, removed, failed, truncated, retention and duration counts. `severity:error` uses `console.error` when any deletion fails; a truncated backlog produces a warning. Set up a Cloudflare Logs alert on these events. **The alert itself is not auto-provisioned** by the repository.
+- The hourly cleanup sweep logs scanned, removed, failed, truncated, retention and duration counts. `severity:error` uses `console.error` when any deletion fails; a truncated backlog produces a warning. The scheduled GitHub workflow checks the latest cleanup result using the private status endpoint described in [the deployment guide](deployment.md).
 - A GitHub Actions uptime workflow checks `/health` and the site's CSP twice per hour. Enable repository Actions and notifications for failures, or connect them to your alerting system; a workflow failure is not itself a push notification.
 - To roll back, deploy the previous known-good Worker version, inspect aggregate cleanup logs and preserve existing encrypted storage. Follow `docs/deployment.md` for configuration details.
 - There is no external penetration test or formal WCAG certification; treat a full independent audit and physical mobile testing as open external release gates.
@@ -30,3 +30,10 @@ The small-file cache is limited to 16 MiB per item, 64 MiB total per unlocked sh
 ## Publishing the CLI
 
 `pnpm --filter @share/cli build && pnpm package:cli` produces a single executable Node bundle in `release/*.tgz`. Install with `npm install -g ./encrypted-share-cli-bundle-<version>.tgz`. Release tags `v*` trigger a GitHub release workflow that attaches the tarball. This does not automatically publish to npm or Homebrew.
+
+## Deferred follow-ups
+
+- Test unlock, refresh, previews, and downloads on physical iOS Safari and Android Chrome.
+- Run a manual screen-reader pass through the workspace, unlock, and viewer flows.
+- Verify a 1 GiB transfer on a low-memory phone and compare the downloaded SHA-256 with the original.
+- Commission an independent security review of key handling, access control, preview isolation, and expiry and deletion before declaring a stable release.
