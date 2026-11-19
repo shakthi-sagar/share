@@ -163,7 +163,9 @@ export async function resolveHtmlAssets(
       if (raw.startsWith("#")) continue;
       const path = resolveHtmlReference(from, raw);
       if (path && files.has(path)) {
-        node.setAttribute("href", "#");
+        // Native same-document fragment navigation is also a fallback for WebKit, which
+        // may not dispatch cross-frame click listeners on sandboxed srcdoc content.
+        node.setAttribute("href", `#share-file=${encodeURIComponent(path)}`);
         node.setAttribute("data-share-path", path);
       } else {
         node.removeAttribute("href");
