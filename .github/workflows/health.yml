@@ -1,7 +1,7 @@
 name: Production uptime check
 on:
   schedule:
-    - cron: '7,37 * * * *'
+    - cron: "7,37 * * * *"
   workflow_dispatch:
 permissions:
   contents: read

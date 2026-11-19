@@ -8,17 +8,17 @@ PNG, JPEG, WebP, GIF, AVIF, SVG, HEIC and TIFF can be previewed when the browser
 
 ## Documents and structured data
 
-| Files | What you can do |
-| --- | --- |
-| PDF | Navigate pages, jump to a page, zoom, and search text. |
-| DOCX | Read a best-effort formatted layout. |
-| PPTX | Navigate extracted slides with basic placement and styling. |
-| XLSX | Choose sheets, browse rows and filter text. |
-| Markdown | Render formatted text and Mermaid diagrams, or inspect source. |
+| Files                         | What you can do                                                                        |
+| ----------------------------- | -------------------------------------------------------------------------------------- |
+| PDF                           | Navigate pages, jump to a page, zoom, and search text.                                 |
+| DOCX                          | Read a best-effort formatted layout.                                                   |
+| PPTX                          | Navigate extracted slides with basic placement and styling.                            |
+| XLSX                          | Choose sheets, browse rows and filter text.                                            |
+| Markdown                      | Render formatted text and Mermaid diagrams, or inspect source.                         |
 | JSON, YAML, HTML, source code | Inspect highlighted text, optionally format it, and switch back to the exact original. |
-| CSV and TSV | Browse data as a table. |
-| ZIP | Browse an archive's contents without extracting it to disk. |
-| OBJ, STL, glTF and GLB | Orbit an interactive model. glTF/GLB assets must have embedded textures and buffers. |
+| CSV and TSV                   | Browse data as a table.                                                                |
+| ZIP                           | Browse an archive's contents without extracting it to disk.                            |
+| OBJ, STL, glTF and GLB        | Orbit an interactive model. glTF/GLB assets must have embedded textures and buffers.   |
 
 Office rendering is **not a substitute for Word, Excel or PowerPoint**. Unsupported charts, embedded objects, formulas and complex layout can look different. Download the original for full fidelity.
 

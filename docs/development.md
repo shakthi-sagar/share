@@ -51,18 +51,18 @@ development `.env.local` would leak `http://localhost` URLs into the production 
 
 ## Common commands
 
-| Command | Purpose |
-| --- | --- |
-| `pnpm dev` | Start the web and API development servers |
-| `pnpm dev:local` | Sync config from `.env.development` and start both servers for local work (API bound to 127.0.0.1:8787) |
-| `pnpm config:check` | Validate the active root `.env` |
-| `pnpm config:sync` | Generate Wrangler configuration |
-| `pnpm biome check .` | Check formatting and lint rules |
-| `pnpm check` | Type-check every workspace package |
-| `pnpm test` | Run all unit tests |
-| `pnpm build` | Build packages and web assets, then perform a Worker dry run |
-| `pnpm deploy:cloudflare` | Apply migrations and deploy the production Worker |
-| `pnpm smoke:deployment` | Exercise the deployed health, web, CORS, D1, R2, and auth path |
+| Command                  | Purpose                                                                                                 |
+| ------------------------ | ------------------------------------------------------------------------------------------------------- |
+| `pnpm dev`               | Start the web and API development servers                                                               |
+| `pnpm dev:local`         | Sync config from `.env.development` and start both servers for local work (API bound to 127.0.0.1:8787) |
+| `pnpm config:check`      | Validate the active root `.env`                                                                         |
+| `pnpm config:sync`       | Generate Wrangler configuration                                                                         |
+| `pnpm biome check .`     | Check formatting and lint rules                                                                         |
+| `pnpm check`             | Type-check every workspace package                                                                      |
+| `pnpm test`              | Run all unit tests                                                                                      |
+| `pnpm build`             | Build packages and web assets, then perform a Worker dry run                                            |
+| `pnpm deploy:cloudflare` | Apply migrations and deploy the production Worker                                                       |
+| `pnpm smoke:deployment`  | Exercise the deployed health, web, CORS, D1, R2, and auth path                                          |
 
 After pulling a new migration, apply it to local storage before starting the API:
 `pnpm --filter @share/api-cloudflare exec wrangler d1 migrations apply DB --local --config

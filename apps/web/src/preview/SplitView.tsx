@@ -40,17 +40,17 @@ export function SplitView({
   useScrollSync(leftPane, rightPane);
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
-    const actions: Record<string, () => void> = {
-      ArrowLeft: () => setClamped(ratio - KEY_STEP),
-      ArrowRight: () => setClamped(ratio + KEY_STEP),
-      Home: () => setClamped(MIN_RATIO),
-      End: () => setClamped(MAX_RATIO),
-      Enter: () => setRatio(0.5),
+    const targetRatios: Record<string, number> = {
+      ArrowLeft: ratio - KEY_STEP,
+      ArrowRight: ratio + KEY_STEP,
+      Home: MIN_RATIO,
+      End: MAX_RATIO,
+      Enter: 0.5,
     };
-    const action = actions[event.key];
-    if (action) {
+    const target = Object.hasOwn(targetRatios, event.key) ? targetRatios[event.key] : undefined;
+    if (target !== undefined) {
       event.preventDefault();
-      action();
+      setClamped(target);
     }
   };
 

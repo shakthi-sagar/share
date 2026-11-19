@@ -23,10 +23,10 @@
     "package:cli": "node scripts/package-cli.mjs"
   },
   "devDependencies": {
-    "@axe-core/playwright": "4.11.1",
-    "@biomejs/biome": "2.5.14",
+    "@axe-core/playwright": "4.14.0",
+    "@biomejs/biome": "2.6.8",
     "@playwright/test": "1.58.2",
-    "esbuild": "0.25.0",
+    "esbuild": "0.28.2",
     "typescript": "7.0.2"
   },
   "pnpm": {
