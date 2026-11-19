@@ -13,7 +13,7 @@
     "@hono/node-server": "2.1.9",
     "@share/protocol": "workspace:*",
     "@share/server": "workspace:*",
-    "hono": "4.13.9"
+    "hono": "4.13.18"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
