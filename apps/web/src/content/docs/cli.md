@@ -4,15 +4,14 @@ Share includes a command-line client for Linux, macOS and Windows development en
 
 ## Install or update
 
-From the Share repository:
+With Node.js 22 or later, download the CLI tarball from [GitHub Releases](https://github.com/shakthi-sagar/share/releases) and install it once:
 
 ```sh
-pnpm install
-pnpm install:cli
+npm install --global ./encrypted-share-cli-bundle-1.0.0-rc.1.tgz
 share status
 ```
 
-The installer places the executable in `~/.local/bin` by default. Make sure that directory is in your `PATH`. Use `SHARE_CLI_BIN_DIR` to change it.
+Use the filename you downloaded. If you already have the repository checked out, run `pnpm install` and `pnpm install:cli` to install from source. The source installer uses `~/.local/bin` by default. Add it to your `PATH` or set `SHARE_CLI_BIN_DIR` to choose another directory.
 
 ## Publish a file or directory
 
@@ -29,7 +28,7 @@ The default expiry is 24 hours and new shares are capped at seven days. The full
 ```sh
 share inspect 'https://share.shadster.dev/s/<id>#k=<secret>'
 share ls --json
-share revoke <share-id>
+share revoke '<share-id>'
 share status --json
 ```
 
@@ -41,7 +40,7 @@ share status --json
 share mcp
 ```
 
-This starts a local **stdio** MCP server. Standalone CLI tarballs are also available in GitHub Releases (Node.js 22+), without cloning the source repository. Agents can check service health and inspect shares. To allow an agent to publish a path, configure `SHARE_MCP_ROOT` to the directory it is allowed to access. The root restriction matters: without it, an agent could be asked to publish unrelated personal files.
+This starts a local **stdio** MCP server. Agents can check service health and inspect shares. To allow an agent to publish a path, configure `SHARE_MCP_ROOT` to the directory it is allowed to access. The root restriction matters: without it, an agent could be asked to publish unrelated personal files.
 
 There is no account-wide cloud file browser, remote agent daemon or requirement to expose a network port for MCP.
 

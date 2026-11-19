@@ -134,18 +134,28 @@ The `share` CLI publishes encrypted files and directories using the same client 
 website. It defaults to a **24-hour expiry**, caps new CLI shares at **7 days**, and never creates
 non-expiring shares. Share URLs include a fragment secret; do not log them in public CI.
 
+Install once with Node.js 22 or later. Download the CLI tarball from
+[GitHub Releases](https://github.com/shakthi-sagar/share/releases) and pass its filename to npm:
+
 ```sh
-pnpm install
-pnpm --filter @share/cli build
-node packages/cli/dist/cli.mjs put screenshot.png --expires 1d
-node packages/cli/dist/cli.mjs put ./screenshots --name "Scene renders"
-node packages/cli/dist/cli.mjs inspect 'https://share.shadster.dev/s/<id>#k=<key>'
-node packages/cli/dist/cli.mjs revoke <id>
-node packages/cli/dist/cli.mjs ls --json
-node packages/cli/dist/cli.mjs status --json
+npm install --global ./encrypted-share-cli-bundle-1.0.0-rc.1.tgz
 ```
 
-Install or update the CLI with `pnpm install:cli`. It installs the executable under `~/.local/bin` by default. Set `SHARE_CLI_BIN_DIR` to choose a different location.
+Then run `share` directly:
+
+```sh
+share put screenshot.png --expires 1d
+share put ./screenshots --name "Scene renders"
+share inspect '<full-share-url>'
+share revoke '<share-id>'
+share ls --json
+share status --json
+```
+
+If you already have the repository checked out, run `pnpm install` and `pnpm install:cli` to
+install or update the local build. That installer uses `~/.local/bin` by default. Add it to
+your `PATH` or set `SHARE_CLI_BIN_DIR` to choose another directory.
+
 Use `share put screenshot.png --json` for agent-friendly output, `share ls --json` to
 inspect locally recorded share IDs and expirations, and `share status` for a service health check.
 CLI delete receipts live at `~/.local/share/receipts` (private file permissions), so the original
