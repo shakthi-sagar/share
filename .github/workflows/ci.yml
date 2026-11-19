@@ -21,7 +21,7 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 10.5.2
       - uses: actions/setup-node@v7
@@ -81,7 +81,7 @@ jobs:
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 10.5.2
       - uses: actions/setup-node@v7
