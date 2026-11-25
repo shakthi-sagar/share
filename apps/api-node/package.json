@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1171.0",
-    "@hono/node-server": "2.1.9",
+    "@hono/node-server": "2.1.11",
     "@share/protocol": "workspace:*",
     "@share/server": "workspace:*",
     "hono": "4.13.18"
