@@ -16,7 +16,7 @@
     "hono": "4.13.18"
   },
   "devDependencies": {
-    "@types/node": "^22.15.0",
+    "@types/node": "^26.6.6",
     "esbuild": "^0.28.2"
   }
 }
